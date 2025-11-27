@@ -301,8 +301,20 @@
         // --- 🧩 Components ---
 
         const Icon = ({ name, size = 20, className }) => {
-            useEffect(() => { if (window.lucide) lucide.createIcons(); }, [name]);
-            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+            const ref = useRef(null);
+            useEffect(() => {
+                if (window.lucide && ref.current) {
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    i.setAttribute('width', size);
+                    i.setAttribute('height', size);
+                    if (className) i.setAttribute('class', className);
+                    ref.current.innerHTML = '';
+                    ref.current.appendChild(i);
+                    window.lucide.createIcons({ root: ref.current });
+                }
+            }, [name, size, className]);
+            return <span ref={ref} style={{ display: 'inline-flex', verticalAlign: 'middle' }}></span>;
         };
 
         const Card = ({ children, className = "" }) => (
@@ -462,9 +474,25 @@
                 }
             }, []);
 
-            const handlePay = (empId) => {
-                showToast(`Payment processed for employee.`, "success");
+            const isPaidThisMonth = (lastPaymentDate) => {
+                if (!lastPaymentDate) return false;
+                const date = lastPaymentDate.toDate ? lastPaymentDate.toDate() : new Date(lastPaymentDate);
+                const now = new Date();
+                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
             };
+
+            const handlePay = async (empId) => {
+                try {
+                    await window.updateDoc(window.doc(window.db, "users", empId), {
+                        lastPaymentDate: window.serverTimestamp()
+                    });
+                    showToast(`Payment processed successfully.`, "success");
+                } catch (e) {
+                    showToast("Error processing payment: " + e.message, "error");
+                }
+            };
+
+            const pendingCount = employees.filter(e => !isPaidThisMonth(e.lastPaymentDate)).length;
 
             return (
                 <div className="space-y-6 animate-fade-in">
@@ -485,8 +513,8 @@
                          <Card>
                              <p className="text-slate-500 text-sm mb-1">{t.payrollStatus}</p>
                              <div className="flex items-center gap-2">
-                                 <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                                 <h3 className="text-lg font-bold text-slate-800">Ready to Process</h3>
+                                 <span className={`w-3 h-3 rounded-full ${pendingCount === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                                 <h3 className="text-lg font-bold text-slate-800">{pendingCount === 0 ? "All Paid" : `${pendingCount} Pending`}</h3>
                              </div>
                          </Card>
                     </div>
@@ -503,17 +531,26 @@
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {employees.map(e => (
-                                    <tr key={e.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4 font-medium">{e.name}</td>
-                                        <td className="p-4 text-slate-500">{e.role}</td>
-                                        <td className="p-4 font-mono font-bold">${Number(e.salary||0).toLocaleString()}</td>
-                                        <td className="p-4"><span className="px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">{t.pending}</span></td>
-                                        <td className="p-4 text-right">
-                                            <button onClick={() => handlePay(e.id)} className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline">{t.processPayment}</button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {employees.map(e => {
+                                    const paid = isPaidThisMonth(e.lastPaymentDate);
+                                    return (
+                                        <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4 font-medium">{e.name}</td>
+                                            <td className="p-4 text-slate-500">{e.role}</td>
+                                            <td className="p-4 font-mono font-bold">${Number(e.salary||0).toLocaleString()}</td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${paid ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    {paid ? t.paid : t.pending}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button onClick={() => handlePay(e.id)} disabled={paid} className={`text-sm font-medium ${paid ? 'text-slate-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-800 hover:underline'}`}>
+                                                    {paid ? "Paid" : t.processPayment}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -522,7 +559,7 @@
         };
 
         // --- 🏠 Dashboard Component ---
-        const Dashboard = ({ t, user }) => (
+        const Dashboard = ({ t, user, setView }) => (
             <div className="space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center">
                     <div>
@@ -558,9 +595,9 @@
                     <Card>
                         <h3 className="font-bold text-slate-800 mb-4">Quick Actions</h3>
                         <div className="space-y-3">
-                            <Button variant="secondary" className="w-full justify-start"><Icon name="clock" size={18}/> {t.checkIn}</Button>
-                            <Button variant="secondary" className="w-full justify-start"><Icon name="file-plus" size={18}/> {t.newRequest}</Button>
-                            <Button variant="secondary" className="w-full justify-start"><Icon name="users" size={18}/> {t.teamChat}</Button>
+                            <Button variant="secondary" className="w-full justify-start" onClick={() => setView('attendance')}><Icon name="clock" size={18}/> {t.checkIn}</Button>
+                            <Button variant="secondary" className="w-full justify-start" onClick={() => setView('requests')}><Icon name="file-plus" size={18}/> {t.newRequest}</Button>
+                            <Button variant="secondary" className="w-full justify-start" onClick={() => setView('chat')}><Icon name="users" size={18}/> {t.teamChat}</Button>
                         </div>
                     </Card>
                 </div>
@@ -937,21 +974,197 @@
             );
         };
 
-        const Reports = ({ t }) => {
+        const Reports = ({ t, onError }) => {
+            const [stats, setStats] = useState({ employees: 0, payroll: 0, requests: 0 });
+            const [deptStats, setDeptStats] = useState([]);
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const fetchStats = async () => {
+                        try {
+                            const usersSnap = await window.getDocs(window.collection(window.db, "users"));
+                            const reqSnap = await window.getDocs(window.collection(window.db, "requests"));
+
+                            const users = usersSnap.docs.map(d => d.data());
+                            const requests = reqSnap.docs.map(d => d.data());
+
+                            const deptCounts = {};
+                            users.forEach(u => {
+                                const dept = u.department || 'General';
+                                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+                            });
+
+                            setStats({
+                                employees: users.length,
+                                payroll: users.reduce((acc, u) => acc + Number(u.salary || 0), 0),
+                                requests: requests.length
+                            });
+
+                            setDeptStats(Object.entries(deptCounts).map(([k, v]) => ({ name: k, value: v })));
+                        } catch(e) { onError && onError(); }
+                    };
+                    fetchStats();
+                }
+            }, []);
+
             return (
                 <div className="space-y-6 animate-fade-in">
-                    <h2 className="text-2xl font-bold text-slate-800">{t.reports}</h2>
-                    <Card className="text-center py-12">
-                         <Icon name="bar-chart-2" size={48} className="mx-auto text-slate-300 mb-4" />
-                         <h3 className="text-lg font-bold text-slate-600">Advanced Analytics</h3>
-                         <p className="text-slate-400 mb-6">Deep dive into attendance trends and payroll costs.</p>
-                         <Button variant="primary" onClick={() => window.print()}>{t.printReport}</Button>
-                    </Card>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-slate-800">{t.reports}</h2>
+                        <Button variant="primary" onClick={() => window.print()}><Icon name="download" size={16}/> {t.printReport}</Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card className="bg-blue-50 border-blue-100">
+                            <h3 className="text-slate-500 text-sm font-bold uppercase mb-2">Total Employees</h3>
+                            <p className="text-3xl font-bold text-blue-600">{stats.employees}</p>
+                        </Card>
+                         <Card className="bg-emerald-50 border-emerald-100">
+                            <h3 className="text-slate-500 text-sm font-bold uppercase mb-2">Monthly Payroll</h3>
+                            <p className="text-3xl font-bold text-emerald-600">${stats.payroll.toLocaleString()}</p>
+                        </Card>
+                         <Card className="bg-purple-50 border-purple-100">
+                            <h3 className="text-slate-500 text-sm font-bold uppercase mb-2">Total Requests</h3>
+                            <p className="text-3xl font-bold text-purple-600">{stats.requests}</p>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card>
+                            <h3 className="font-bold text-slate-800 mb-6">Employees by Department</h3>
+                            <div className="space-y-4">
+                                {deptStats.map((d, i) => (
+                                    <div key={i}>
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span className="font-medium text-slate-700">{d.name}</span>
+                                            <span className="text-slate-500">{d.value}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-2.5">
+                                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(d.value / stats.employees) * 100}%` }}></div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {deptStats.length === 0 && <p className="text-slate-400 text-center py-4">No data available</p>}
+                            </div>
+                        </Card>
+
+                        <Card>
+                             <h3 className="font-bold text-slate-800 mb-6">Attendance Overview</h3>
+                             <DashboardChart t={t} />
+                        </Card>
+                    </div>
                 </div>
             );
         }
 
-        const Meetings = ({ t }) => <div className="animate-fade-in"><h2 className="text-2xl font-bold text-slate-800 mb-6">{t.meetings}</h2><Card className="py-12 text-center text-slate-500">Meeting scheduling coming soon.</Card></div>;
+        const Meetings = ({ t, onError }) => {
+            const [meetings, setMeetings] = useState([]);
+            const [showForm, setShowForm] = useState(false);
+            const [newMeeting, setNewMeeting] = useState({ title: '', date: '', time: '', link: '' });
+            const showToast = useToast();
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const q = window.query(window.collection(window.db, "meetings"), window.orderBy("date", "asc"));
+                    const unsub = window.onSnapshot(q, snap => {
+                        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setMeetings(data);
+                    }, err => onError && onError());
+                    return () => unsub();
+                }
+            }, []);
+
+            const handleSchedule = async (e) => {
+                e.preventDefault();
+                try {
+                    await window.addDoc(window.collection(window.db, "meetings"), {
+                        ...newMeeting,
+                        createdAt: window.serverTimestamp()
+                    });
+                    showToast("Meeting scheduled successfully", "success");
+                    setShowForm(false);
+                    setNewMeeting({ title: '', date: '', time: '', link: '' });
+                } catch (e) { showToast(e.message, "error"); }
+            };
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-slate-800">{t.meetings}</h2>
+                        <Button onClick={() => setShowForm(true)}><Icon name="plus" size={18}/> {t.scheduleMeeting}</Button>
+                    </div>
+
+                    {showForm && (
+                        <Card className="bg-slate-50 border-blue-100">
+                            <h3 className="font-bold mb-4">{t.scheduleMeeting}</h3>
+                            <form onSubmit={handleSchedule} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">{t.meetingTitle}</label>
+                                    <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={newMeeting.title} onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} placeholder="Weekly Sync" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                                        <input type="date" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={newMeeting.date} onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
+                                        <input type="time" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={newMeeting.time} onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Link (Optional)</label>
+                                    <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={newMeeting.link} onChange={e => setNewMeeting({...newMeeting, link: e.target.value})} placeholder="https://meet.google.com/..." />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="secondary" onClick={() => setShowForm(false)}>{t.cancel}</Button>
+                                    <Button type="submit">{t.create}</Button>
+                                </div>
+                            </form>
+                        </Card>
+                    )}
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {meetings.map(m => (
+                            <Card key={m.id} className="hover:shadow-md transition-shadow">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+                                        <Icon name="video" size={24} />
+                                    </div>
+                                    {m.link && (
+                                        <a href={m.link} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
+                                            <Icon name="external-link" size={18} />
+                                        </a>
+                                    )}
+                                </div>
+                                <h3 className="font-bold text-lg text-slate-800 mb-1">{m.title}</h3>
+                                <div className="flex items-center gap-2 text-slate-500 text-sm mb-4">
+                                    <Icon name="calendar" size={14} />
+                                    <span>{new Date(m.date).toLocaleDateString()}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                    <span>{m.time}</span>
+                                </div>
+                                {m.link ? (
+                                    <Button className="w-full" onClick={() => window.open(m.link, '_blank')}>{t.join}</Button>
+                                ) : (
+                                    <Button variant="secondary" disabled className="w-full">No Link</Button>
+                                )}
+                            </Card>
+                        ))}
+                        {meetings.length === 0 && (
+                            <div className="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+                                <Icon name="calendar-off" size={48} className="mx-auto mb-4 opacity-50"/>
+                                <p>No scheduled meetings.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
 
         // --- 🚀 Main App ---
         const App = () => {
@@ -995,7 +1208,7 @@
                                 </div>
                             </header>
                             <main className="flex-1 overflow-auto p-4 md:p-8 relative">
-                                {view === 'dashboard' && <Dashboard t={t} user={user} />}
+                                {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} />}
                                 {view === 'attendance' && <Attendance t={t} user={user} />}
                                 {view === 'employees' && (user.role === 'HR' ? <Employees t={t} user={user} /> : <Card className="border-red-200 bg-red-50 text-red-600 p-4">{t.accessDenied}</Card>)}
                                 {view === 'reports' && <Reports t={t} />}
