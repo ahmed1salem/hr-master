@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Master - Smart Management System</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Firebase SDKs (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        
+        // --- ✅ LIVE FIREBASE CONFIGURATION ✅ ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTLUtRTuECf4SKZ_Jf33Gr1oFvnq1OnnQ",
+            authDomain: "hr-master-127af.firebaseapp.com",
+            projectId: "hr-master-127af",
+            storageBucket: "hr-master-127af.firebasestorage.app",
+            messagingSenderId: "475367853980",
+            appId: "1:475367853980:web:cb5bf55397b2a7ffb30259"
+        };
+
+        // Initialize Firebase safely
+        let app, auth, db;
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyD-YOUR-API-KEY-HERE") {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                window.firebaseLoaded = true;
+                console.log("Firebase Connected Successfully ✅");
+            } else {
+                console.warn("Firebase config not set. Running in Demo Mode.");
+                window.firebaseLoaded = false;
+            }
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+            window.firebaseLoaded = false;
+        }
+
+        // Expose to window for React
+        window.db = db;
+        window.auth = auth;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.signOut = signOut;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.collection = collection;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.getDoc = getDoc;
+        window.addDoc = addDoc;
+        window.updateDoc = updateDoc;
+        window.query = query;
+        window.where = where;
+        window.onSnapshot = onSnapshot;
+        window.orderBy = orderBy;
+        window.serverTimestamp = serverTimestamp;
+    </script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-arabic { font-family: 'Cairo', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+
+        /* --- PRINT STYLES (For PDF Export) --- */
+        @media print {
+            body { background: white; font-size: 12pt; }
+            .no-print, nav, header, button:not(.print-allow) { display: none !important; }
+            .print-only { display: block !important; }
+            .print-container { 
+                position: absolute; 
+                top: 0; left: 0; 
+                width: 100%; 
+                margin: 0; 
+                padding: 20px; 
+                box-shadow: none; 
+                border: none;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- Translations ---
+        const TRANSLATIONS = {
+            en: {
+                title: "HR Master",
+                dashboard: "Dashboard",
+                attendance: "Attendance",
+                payroll: "Payroll",
+                requests: "Requests",
+                chat: "Team Chat",
+                meetings: "Meetings",
+                employees: "Employees",
+                reports: "Reports",
+                settings: "Settings",
+                login: "Login",
+                register: "Register",
+                email: "Email",
+                password: "Password",
+                fullName: "Full Name",
+                department: "Department",
+                role: "Role",
+                salary: "Salary",
+                welcome: "Welcome,",
+                checkIn: "Check In",
+                checkOut: "Check Out",
+                status: "Status",
+                online: "Online",
+                onsite: "On-Site",
+                create: "Create",
+                cancel: "Cancel",
+                submit: "Submit",
+                demoMode: "Demo Mode",
+                gpsRequired: "GPS access is required.",
+                accessDenied: "Access Denied: HR Only",
+                addEmployee: "Add / Edit Employee",
+                save: "Save Changes",
+                loginError: "Invalid credentials",
+                permErrorDesc: "Permission Denied. Check Firebase Rules.",
+                noAccount: "No account? Register here.",
+                haveAccount: "Already have an account? Login.",
+                roles: { hr: "HR Manager", manager: "Manager", employee: "Employee" },
+                edit: "Edit",
+                actions: "Actions",
+                printReport: "Print / Save as PDF",
+                reportType: "Report Type",
+                allDepts: "All Departments",
+                filterByDept: "Filter by Department",
+                employeeReport: "Employee Directory",
+                attendanceReport: "Attendance Log",
+                totalEmployees: "Total Employees",
+                totalSalary: "Total Monthly Payroll",
+                generatedOn: "Generated on",
+                selectReport: "Select a report type to view details.",
+                // Requests
+                myRequests: "My Requests",
+                manageRequests: "Manage Requests",
+                newRequest: "New Request",
+                type: "Type",
+                reason: "Reason",
+                pending: "Pending",
+                approved: "Approved",
+                rejected: "Rejected",
+                approve: "Approve",
+                reject: "Reject",
+                loan: "Loan",
+                leave: "Leave",
+                overtime: "Overtime",
+                reqSuccess: "Request submitted successfully",
+                // Chat & Meetings
+                typeMessage: "Type a message...",
+                scheduleMeeting: "Schedule Meeting",
+                meetingTitle: "Meeting Title",
+                join: "Join"
+            },
+            ar: {
+                title: "HR Master",
+                dashboard: "لوحة التحكم",
+                attendance: "الحضور والانصراف",
+                payroll: "الرواتب",
+                requests: "الطلبات",
+                chat: "المحادثات",
+                meetings: "الاجتماعات",
+                employees: "الموظفين",
+                reports: "التقارير",
+                settings: "الإعدادات",
+                login: "تسجيل الدخول",
+                register: "إنشاء حساب جديد",
+                email: "البريد الإلكتروني",
+                password: "كلمة المرور",
+                fullName: "الاسم الكامل",
+                department: "القسم",
+                role: "الصلاحية / الوظيفة",
+                salary: "الراتب",
+                welcome: "مرحباً،",
+                checkIn: "تسجيل حضور",
+                checkOut: "تسجيل انصراف",
+                status: "الحالة",
+                online: "أونلاين",
+                onsite: "في المقر",
+                create: "إنشاء",
+                cancel: "إلغاء",
+                submit: "إرسال",
+                demoMode: "وضع تجريبي",
+                gpsRequired: "مطلوب تفعيل GPS",
+                accessDenied: "غير مصرح: خاص بالموارد البشرية",
+                addEmployee: "إضافة / تعديل موظف",
+                save: "حفظ التغييرات",
+                loginError: "بيانات الدخول غير صحيحة",
+                permErrorDesc: "خطأ في الصلاحيات. تأكد من إعدادات Firebase.",
+                noAccount: "ليس لديك حساب؟ سجل الآن.",
+                haveAccount: "لديك حساب بالفعل؟ تسجيل الدخول.",
+                roles: { hr: "مدير موارد بشرية", manager: "مدير", employee: "موظف" },
+                edit: "تعديل",
+                actions: "إجراءات",
+                printReport: "طباعة / حفظ كـ PDF",
+                reportType: "نوع التقرير",
+                allDepts: "كل الأقسام",
+                filterByDept: "فلتر حسب القسم",
+                employeeReport: "دليل الموظفين",
+                attendanceReport: "سجل الحضور",
+                totalEmployees: "إجمالي الموظفين",
+                totalSalary: "إجمالي الرواتب الشهرية",
+                generatedOn: "تم الاستخراج في",
+                selectReport: "اختر نوع التقرير لعرض التفاصيل.",
+                // Requests
+                myRequests: "طلباتي",
+                manageRequests: "إدارة الطلبات",
+                newRequest: "طلب جديد",
+                type: "النوع",
+                reason: "السبب",
+                pending: "قيد الانتظار",
+                approved: "مقبول",
+                rejected: "مرفوض",
+                approve: "قبول",
+                reject: "رفض",
+                loan: "سلفة",
+                leave: "إجازة",
+                overtime: "عمل إضافي",
+                reqSuccess: "تم إرسال الطلب بنجاح",
+                // Chat & Meetings
+                typeMessage: "اكتب رسالتك...",
+                scheduleMeeting: "جدولة اجتماع",
+                meetingTitle: "عنوان الاجتماع",
+                join: "انضمام"
+            }
+        };
+
+        const Icon = ({ name, size = 20, className }) => {
+            React.useEffect(() => { if (window.lucide) lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        // --- 🛡️ PERMISSION HELP MODAL ---
+        const PermissionHelpModal = ({ onClose, lang }) => (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
+                <div dir="ltr" className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl overflow-hidden relative">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"><Icon name="x" /></button>
+                    <h3 className="text-xl font-bold text-red-600 flex items-center gap-2 mb-4">
+                        <Icon name="shield-alert" /> Firebase Permission Error
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                        {lang === 'ar' 
+                            ? "تمنع إعدادات الأمان الحالية في Firebase قراءة البيانات. لحل المشكلة، اذهب إلى Firebase Console > Firestore Database > Rules واستبدل الكود بالكود التالي:"
+                            : "Your current Firebase security rules are blocking data access. To fix this, go to Firebase Console > Firestore Database > Rules and paste this:"}
+                    </p>
+                    <div className="bg-gray-800 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto mb-4 text-left">
+                        <pre>{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      // ⚠️ WARNING: Allows anyone signed in to read/write
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}</pre>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => window.location.reload()} className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-bold hover:bg-gray-300">
+                           {lang === 'ar' ? "تحديث الصفحة" : "Reload Page"}
+                        </button>
+                        <button onClick={onClose} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">
+                            {lang === 'ar' ? "حسناً، سأقوم بالتحديث" : "OK, I will update it"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- 🔑 AUTH HELP MODAL (Fix for operation-not-allowed) ---
+        const AuthHelpModal = ({ onClose, lang }) => (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
+                <div dir="ltr" className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl overflow-hidden relative">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"><Icon name="x" /></button>
+                    <h3 className="text-xl font-bold text-orange-600 flex items-center gap-2 mb-4">
+                        <Icon name="lock" /> Authentication Not Enabled
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                        {lang === 'ar' 
+                            ? "يبدو أنك لم تقم بتفعيل الدخول بالبريد الإلكتروني في Firebase. اذهب إلى Firebase Console > Build > Authentication > Sign-in method وقم بتفعيل Email/Password."
+                            : "Email/Password sign-in is not enabled in your Firebase project. Go to Firebase Console > Build > Authentication > Sign-in method and enable 'Email/Password'."}
+                    </p>
+                    <div className="flex gap-2">
+                        <button onClick={onClose} className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">
+                            {lang === 'ar' ? "فهمت ذلك" : "Got it"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- AUTH & LOGIN COMPONENT ---
+        const AuthScreen = ({ t, onLogin, lang, onError }) => {
+            const [isRegister, setIsRegister] = useState(false);
+            const [formData, setFormData] = useState({ email: '', password: '', name: '' });
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [showAuthHelp, setShowAuthHelp] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError('');
+                
+                if (!window.firebaseLoaded) {
+                    setTimeout(() => onLogin({ uid: 'demo', email: formData.email, role: 'HR', name: 'Demo User' }), 1000);
+                    return;
+                }
+
+                try {
+                    let user;
+                    if (isRegister) {
+                        const userCredential = await window.createUserWithEmailAndPassword(window.auth, formData.email, formData.password);
+                        user = userCredential.user;
+                        
+                        const role = 'Employee'; 
+                        
+                        try {
+                            await window.setDoc(window.doc(window.db, "users", user.uid), {
+                                uid: user.uid,
+                                name: formData.name,
+                                email: formData.email,
+                                role: role, 
+                                department: 'General',
+                                salary: 0,
+                                createdAt: window.serverTimestamp()
+                            });
+                        } catch(docErr) {
+                            console.error("Doc creation failed:", docErr);
+                            if(docErr.code === 'permission-denied' && onError) onError();
+                        }
+                    } else {
+                        const userCredential = await window.signInWithEmailAndPassword(window.auth, formData.email, formData.password);
+                        user = userCredential.user;
+                    }
+                } catch (err) {
+                    console.error("Auth Error:", err.code, err.message);
+                    let msg = err.message;
+                    if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+                        msg = lang === 'ar' ? "البريد الإلكتروني أو كلمة المرور غير صحيحة." : "Invalid email or password.";
+                    } else if (err.code === 'auth/email-already-in-use') {
+                        msg = lang === 'ar' ? "هذا البريد الإلكتروني مسجل بالفعل." : "Email already in use.";
+                    } else if (err.code === 'auth/weak-password') {
+                        msg = lang === 'ar' ? "كلمة المرور ضعيفة جداً (يجب أن تكون 6 أحرف على الأقل)." : "Password is too weak.";
+                    } else if (err.code === 'auth/operation-not-allowed') {
+                        msg = lang === 'ar' ? "تسجيل الدخول غير مفعل." : "Operation not allowed.";
+                        setShowAuthHelp(true);
+                    }
+                    setError(msg);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+                    {showAuthHelp && <AuthHelpModal onClose={() => setShowAuthHelp(false)} lang={lang} />}
+                    <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+                        <div className="flex justify-center mb-6">
+                            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white">
+                                <Icon name="activity" size={32} />
+                            </div>
+                        </div>
+                        <h2 className="text-2xl font-bold text-center mb-2 text-slate-800">{isRegister ? t.register : t.login}</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {isRegister && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">{t.fullName}</label>
+                                    <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{t.email}</label>
+                                <input type="email" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{t.password}</label>
+                                <input type="password" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                            </div>
+                            {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">{error}</p>}
+                            <button type="submit" disabled={loading} className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50">
+                                {loading ? "Processing..." : (isRegister ? t.create : t.signInBtn)}
+                            </button>
+                        </form>
+                        <div className="mt-4 text-center">
+                            <button onClick={() => { setIsRegister(!isRegister); setError(''); }} className="text-sm text-blue-600 hover:underline">
+                                {isRegister ? t.haveAccount : t.noAccount}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SIDEBAR ---
+        const Sidebar = ({ view, setView, lang, t, isOpen, toggleSidebar, user }) => {
+            const allItems = [
+                { id: 'dashboard', icon: 'layout-dashboard', label: t.dashboard, roles: ['HR', 'Manager', 'Employee'] },
+                { id: 'attendance', icon: 'map-pin', label: t.attendance, roles: ['HR', 'Manager', 'Employee'] },
+                { id: 'employees', icon: 'users', label: t.employees, roles: ['HR'] }, 
+                { id: 'reports', icon: 'bar-chart-2', label: t.reports, roles: ['HR', 'Manager'] },
+                { id: 'requests', icon: 'file-text', label: t.requests, roles: ['HR', 'Manager', 'Employee'] },
+                { id: 'meetings', icon: 'video', label: t.meetings, roles: ['HR', 'Manager', 'Employee'] },
+                { id: 'chat', icon: 'message-circle', label: t.chat, roles: ['HR', 'Manager', 'Employee'] },
+            ];
+
+            const userRole = user?.role || 'Employee';
+            const menuItems = allItems.filter(item => item.roles.includes(userRole));
+
+            return (
+                <div className={`${isOpen ? 'translate-x-0' : (lang === 'ar' ? 'translate-x-full' : '-translate-x-full')} no-print md:translate-x-0 fixed md:static z-30 transition-transform duration-300 w-64 h-full bg-slate-900 text-white flex flex-col shadow-xl`}>
+                    <div className="p-6 flex items-center justify-between">
+                        <h1 className="text-2xl font-bold flex items-center gap-2">
+                            <Icon name="activity" className="text-blue-400" />
+                            HR Master
+                        </h1>
+                        <button onClick={toggleSidebar} className="md:hidden"><Icon name="x" /></button>
+                    </div>
+                    <nav className="flex-1 px-4 space-y-2">
+                        {menuItems.map(item => (
+                            <button key={item.id} onClick={() => { setView(item.id); if(window.innerWidth < 768) toggleSidebar(); }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+                                <Icon name={item.icon} size={20} />
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="p-4 bg-slate-800 m-4 rounded-xl">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-lg font-bold uppercase">{user?.name?.charAt(0) || 'U'}</div>
+                            <div className="overflow-hidden">
+                                <p className="text-sm font-semibold truncate">{user?.name || 'User'}</p>
+                                <p className="text-xs text-blue-300 truncate">{t.roles[userRole.toLowerCase()] || userRole}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => window.auth ? window.signOut(window.auth) : window.location.reload()} className="w-full py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs flex items-center justify-center gap-2">
+                            <Icon name="log-out" size={14} /> Logout
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- DASHBOARD ---
+        const Dashboard = ({ t, user }) => (
+            <div className="space-y-6 animate-fade-in">
+                <h2 className="text-2xl font-bold text-slate-800">{t.dashboard}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {[
+                        { title: t.status, val: "Active", icon: "activity", color: "bg-green-500" },
+                        { title: t.role, val: user?.role, icon: "shield", color: "bg-purple-500" },
+                        { title: t.department, val: user?.department || "General", icon: "briefcase", color: "bg-blue-500" },
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div><p className="text-sm text-slate-500 mb-1">{stat.title}</p><h3 className="text-xl font-bold text-slate-800">{stat.val}</h3></div>
+                            <div className={`w-12 h-12 rounded-full ${stat.color} bg-opacity-10 flex items-center justify-center text-${stat.color.split('-')[1]}-600`}><Icon name={stat.icon} /></div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        // --- ATTENDANCE ---
+        const Attendance = ({ t, user, onError }) => {
+            const [status, setStatus] = useState(null);
+            const [logs, setLogs] = useState([]);
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db && user) {
+                    let q;
+                    if (user.role === 'HR') {
+                        q = window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc"));
+                    } else {
+                        q = window.query(window.collection(window.db, "attendance"), window.where("userId", "==", user.uid));
+                    }
+
+                    const unsub = window.onSnapshot(q, (snap) => {
+                        let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        if (user.role !== 'HR') {
+                            data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                        }
+                        setLogs(data);
+                        if (data.length > 0) {
+                            const lastLog = data[0];
+                            const logDate = lastLog.timestamp ? new Date(lastLog.timestamp.seconds * 1000).toDateString() : '';
+                            const today = new Date().toDateString();
+                            if (lastLog.type === 'in' && logDate === today) setStatus('Checked In');
+                            else setStatus(null);
+                        } else setStatus(null);
+                    }, (err) => { if (err.code === 'permission-denied' && onError) onError(); });
+                    return () => unsub();
+                }
+            }, [user]);
+
+            const handlePunch = async (type) => {
+                setLoading(true);
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const loc = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                    if (window.firebaseLoaded) {
+                        try {
+                            await window.addDoc(window.collection(window.db, "attendance"), {
+                                userId: user.uid,
+                                userName: user.name || user.email,
+                                type: type,
+                                location: loc,
+                                timestamp: window.serverTimestamp(),
+                                department: user.department || 'General' 
+                            });
+                        } catch(err) { if(err.code === 'permission-denied' && onError) onError(); }
+                    }
+                    setLoading(false);
+                }, () => { alert(t.gpsRequired); setLoading(false); });
+            };
+
+            return (
+                <div className="space-y-6">
+                    <h2 className="text-2xl font-bold">{t.attendance}</h2>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${status ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <Icon name="map-pin" size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold">{status ? t.online : "Offline"}</h3>
+                                <p className="text-sm text-slate-500">{new Date().toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            {!status ? 
+                                <button onClick={() => handlePunch('in')} disabled={loading} className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700">{t.checkIn}</button> 
+                                : 
+                                <button onClick={() => handlePunch('out')} disabled={loading} className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700">{t.checkOut}</button>
+                            }
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-600">
+                                <tr>
+                                    <th className="p-4">{user.role === 'HR' ? t.fullName : 'Date'}</th>
+                                    <th className="p-4">Type</th>
+                                    <th className="p-4">Time</th>
+                                    <th className="p-4">Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.map(log => (
+                                    <tr key={log.id} className="border-t hover:bg-slate-50">
+                                        <td className="p-4 font-medium">{user.role === 'HR' ? log.userName : new Date(log.timestamp?.seconds * 1000).toLocaleDateString()}</td>
+                                        <td className="p-4">
+                                            <span className={`px-2 py-1 rounded text-xs font-bold ${log.type === 'in' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {log.type.toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">{log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString() : '-'}</td>
+                                        <td className="p-4 text-slate-500">{log.location}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- REQUESTS ---
+        const Requests = ({ t, user, onError }) => {
+            const [requests, setRequests] = useState([]);
+            const [tab, setTab] = useState('my'); // 'my' or 'manage'
+            const [showForm, setShowForm] = useState(false);
+            const [newReq, setNewReq] = useState({ type: 'Leave', reason: '' });
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db && user) {
+                    let q;
+                    if (user.role === 'HR' || user.role === 'Manager') {
+                        q = window.collection(window.db, "requests");
+                    } else {
+                        q = window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
+                    }
+
+                    const unsub = window.onSnapshot(q, (snap) => {
+                        let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                        setRequests(data);
+                    }, (err) => { if (err.code === 'permission-denied' && onError) onError(); });
+                    return () => unsub();
+                }
+            }, [user]);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (window.firebaseLoaded) {
+                    try {
+                        await window.addDoc(window.collection(window.db, "requests"), {
+                            userId: user.uid,
+                            userName: user.name || user.email,
+                            type: newReq.type,
+                            reason: newReq.reason,
+                            status: 'Pending',
+                            timestamp: window.serverTimestamp()
+                        });
+                        alert(t.reqSuccess);
+                        setShowForm(false);
+                        setNewReq({ type: 'Leave', reason: '' });
+                    } catch (e) { console.error(e); }
+                }
+            };
+
+            const updateStatus = async (id, status) => {
+                if (window.firebaseLoaded) {
+                    try {
+                        await window.updateDoc(window.doc(window.db, "requests", id), { status: status });
+                    } catch (e) { console.error(e); }
+                }
+            };
+
+            const canManage = user.role === 'HR' || user.role === 'Manager';
+            const visibleRequests = tab === 'my' ? requests.filter(r => r.userId === user.uid) : requests;
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold">{t.requests}</h2>
+                        <button onClick={() => setShowForm(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+                            <Icon name="plus" size={16} /> {t.newRequest}
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2 border-b">
+                        <button onClick={() => setTab('my')} className={`px-4 py-2 border-b-2 ${tab === 'my' ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-slate-500'}`}>
+                            {t.myRequests}
+                        </button>
+                        {canManage && (
+                            <button onClick={() => setTab('manage')} className={`px-4 py-2 border-b-2 ${tab === 'manage' ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-slate-500'}`}>
+                                {t.manageRequests}
+                            </button>
+                        )}
+                    </div>
+
+                    {showForm && (
+                        <div className="bg-slate-100 p-6 rounded-xl border border-blue-200 animate-fade-in">
+                            <h3 className="font-bold mb-4">{t.newRequest}</h3>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">{t.type}</label>
+                                    <select className="w-full p-2 border rounded bg-white" value={newReq.type} onChange={e => setNewReq({...newReq, type: e.target.value})}>
+                                        <option value="Leave">{t.leave}</option>
+                                        <option value="Loan">{t.loan}</option>
+                                        <option value="Overtime">{t.overtime}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">{t.reason}</label>
+                                    <textarea required className="w-full p-2 border rounded" rows="3" value={newReq.reason} onChange={e => setNewReq({...newReq, reason: e.target.value})}></textarea>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-slate-600">{t.cancel}</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">{t.submit}</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    <div className="grid gap-4">
+                        {visibleRequests.map(req => (
+                            <div key={req.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-lg">{t[(req.type || '').toLowerCase()] || req.type}</span>
+                                        <span className={`text-xs px-2 py-1 rounded font-bold ${req.status === 'Approved' ? 'bg-green-100 text-green-700' : req.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {t[(req.status || '').toLowerCase()] || req.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-600 text-sm mt-1">{req.reason}</p>
+                                    <p className="text-slate-400 text-xs mt-2">{req.userName} • {req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleDateString() : ''}</p>
+                                </div>
+                                {canManage && tab === 'manage' && req.status === 'Pending' && (
+                                    <div className="flex gap-2">
+                                        <button onClick={() => updateStatus(req.id, 'Approved')} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"><Icon name="check" size={18} /></button>
+                                        <button onClick={() => updateStatus(req.id, 'Rejected')} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"><Icon name="x" size={18} /></button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {visibleRequests.length === 0 && <p className="text-center text-slate-400 py-8">No requests found.</p>}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- REPORTS ---
+        const Reports = ({ t, lang, user, onError }) => {
+            const [activeReport, setActiveReport] = useState('employee');
+            const [selectedDept, setSelectedDept] = useState('All');
+            const [employees, setEmployees] = useState([]);
+            const [logs, setLogs] = useState([]);
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const unsubUsers = window.onSnapshot(
+                        window.collection(window.db, "users"), 
+                        (snap) => setEmployees(snap.docs.map(d => ({id:d.id, ...d.data()}))),
+                        (err) => { if(err.code === 'permission-denied' && onError) onError(); }
+                    );
+                    const unsubLogs = window.onSnapshot(
+                        window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc")), 
+                        (snap) => setLogs(snap.docs.map(d => ({id:d.id, ...d.data()}))),
+                        (err) => { if(err.code === 'permission-denied' && onError) onError(); }
+                    );
+                    return () => { unsubUsers(); unsubLogs(); };
+                }
+            }, []);
+
+            const departments = ['All', ...new Set(employees.map(e => e.department).filter(Boolean))];
+            const filteredEmployees = selectedDept === 'All' ? employees : employees.filter(e => e.department === selectedDept);
+            const filteredLogs = selectedDept === 'All' ? logs : logs.filter(l => {
+                const emp = employees.find(e => e.uid === l.userId);
+                return emp && emp.department === selectedDept;
+            });
+
+            const handlePrint = () => window.print();
+
+            return (
+                <div className="space-y-6 print-container">
+                    <div className="flex justify-between items-center no-print">
+                        <h2 className="text-2xl font-bold">{t.reports}</h2>
+                        <button onClick={handlePrint} className="bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-700 print-allow">
+                            <Icon name="printer" size={16} /> {t.printReport}
+                        </button>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex gap-4 no-print">
+                        <div>
+                            <label className="block text-xs text-slate-500 mb-1">{t.reportType}</label>
+                            <select className="p-2 border rounded-lg bg-slate-50" value={activeReport} onChange={e => setActiveReport(e.target.value)}>
+                                <option value="employee">{t.employeeReport}</option>
+                                <option value="attendance">{t.attendanceReport}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-500 mb-1">{t.filterByDept}</label>
+                            <select className="p-2 border rounded-lg bg-slate-50" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
+                                {departments.map(d => <option key={d} value={d}>{d === 'All' ? t.allDepts : d}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="text-center mb-6 pb-6 border-b border-slate-300">
+                        <h1 className="text-3xl font-bold mb-2">HR Master - {activeReport === 'employee' ? t.employeeReport : t.attendanceReport}</h1>
+                        <p className="text-slate-500">{t.generatedOn}: {new Date().toLocaleString()}</p>
+                        {selectedDept !== 'All' && <p className="font-bold mt-2">{t.department}: {selectedDept}</p>}
+                    </div>
+                    {activeReport === 'employee' && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div className="p-4 bg-slate-50 border-b flex justify-between font-bold">
+                                <span>{t.totalEmployees}: {filteredEmployees.length}</span>
+                                <span>{t.totalSalary}: ${filteredEmployees.reduce((acc, curr) => acc + Number(curr.salary || 0), 0).toLocaleString()}</span>
+                            </div>
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-100">
+                                    <tr>
+                                        <th className="p-3 border">{t.fullName}</th>
+                                        <th className="p-3 border">{t.email}</th>
+                                        <th className="p-3 border">{t.department}</th>
+                                        <th className="p-3 border">{t.role}</th>
+                                        <th className="p-3 border">{t.salary}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredEmployees.map(e => (
+                                        <tr key={e.id}>
+                                            <td className="p-3 border">{e.name}</td>
+                                            <td className="p-3 border">{e.email}</td>
+                                            <td className="p-3 border">{e.department}</td>
+                                            <td className="p-3 border">{e.role}</td>
+                                            <td className="p-3 border">${Number(e.salary||0).toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    {activeReport === 'attendance' && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-100">
+                                    <tr>
+                                        <th className="p-3 border">{t.fullName}</th>
+                                        <th className="p-3 border">Date</th>
+                                        <th className="p-3 border">Type</th>
+                                        <th className="p-3 border">Time</th>
+                                        <th className="p-3 border">Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredLogs.map(l => (
+                                        <tr key={l.id}>
+                                            <td className="p-3 border font-bold">{l.userName}</td>
+                                            <td className="p-3 border">{new Date(l.timestamp?.seconds * 1000).toLocaleDateString()}</td>
+                                            <td className="p-3 border"><span className={l.type==='in'?'text-green-600 font-bold':'text-red-600 font-bold'}>{l.type.toUpperCase()}</span></td>
+                                            <td className="p-3 border">{new Date(l.timestamp?.seconds * 1000).toLocaleTimeString()}</td>
+                                            <td className="p-3 border text-xs">{l.location}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- EMPLOYEES (HR ONLY) ---
+        const Employees = ({ t, lang, user, onError }) => {
+            const [users, setUsers] = useState([]);
+            const [showForm, setShowForm] = useState(false);
+            const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 });
+            const [editingId, setEditingId] = useState(null);
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const unsub = window.onSnapshot(
+                        window.collection(window.db, "users"), 
+                        (snap) => setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+                        (err) => { if(err.code === 'permission-denied' && onError) onError(); }
+                    );
+                    return () => unsub();
+                }
+            }, []);
+
+            const handleSaveUser = async (e) => {
+                e.preventDefault();
+                if (window.firebaseLoaded) {
+                    try {
+                        if (editingId) {
+                            await window.updateDoc(window.doc(window.db, "users", editingId), {
+                                name: newUser.name,
+                                email: newUser.email,
+                                role: newUser.role,
+                                department: newUser.department,
+                                salary: Number(newUser.salary)
+                            });
+                            alert(lang === 'ar' ? "تم تحديث بيانات الموظف" : "User updated successfully");
+                        } else {
+                            await window.addDoc(window.collection(window.db, "users"), {
+                                ...newUser,
+                                createdAt: window.serverTimestamp(),
+                                dummyAuth: true 
+                            });
+                            alert(lang === 'ar' ? "تم إضافة الموظف" : "User added successfully");
+                        }
+                        setShowForm(false);
+                        setEditingId(null);
+                        setNewUser({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 });
+                    } catch (err) { 
+                        console.error(err); 
+                        if(err.code === 'permission-denied' && onError) onError();
+                        else alert(err.message); 
+                    }
+                }
+            };
+
+            const startEdit = (u) => {
+                setNewUser({ name: u.name, email: u.email, role: u.role, department: u.department, salary: u.salary || 0 });
+                setEditingId(u.id);
+                setShowForm(true);
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold">{t.employees}</h2>
+                        <button onClick={() => { setEditingId(null); setShowForm(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+                            <Icon name="plus" size={16} /> {t.addEmployee}
+                        </button>
+                    </div>
+                    {showForm && (
+                        <div className="bg-slate-100 p-6 rounded-xl border border-blue-200 animate-fade-in">
+                            <h3 className="font-bold mb-4">{editingId ? (lang === 'ar' ? "تعديل الموظف" : "Edit Employee") : t.addEmployee}</h3>
+                            <form onSubmit={handleSaveUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input placeholder={t.fullName} className="p-2 rounded border" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                                <input placeholder={t.email} type="email" className="p-2 rounded border" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+                                <select className="p-2 rounded border" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                                    <option value="Employee">Employee</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="HR">HR (Admin)</option>
+                                </select>
+                                <input placeholder={t.department} className="p-2 rounded border" value={newUser.department} onChange={e => setNewUser({...newUser, department: e.target.value})} />
+                                <input placeholder={t.salary} type="number" className="p-2 rounded border" value={newUser.salary} onChange={e => setNewUser({...newUser, salary: e.target.value})} />
+                                <div className="md:col-span-2 flex justify-end gap-2">
+                                    <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-slate-600">{t.cancel}</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">{t.save}</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-600">
+                                <tr>
+                                    <th className="p-4">{t.fullName}</th>
+                                    <th className="p-4">{t.role}</th>
+                                    <th className="p-4">{t.department}</th>
+                                    <th className="p-4">{t.salary}</th>
+                                    <th className="p-4 w-20">{t.actions}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.map(u => (
+                                    <tr key={u.id} className="border-t hover:bg-slate-50">
+                                        <td className="p-4">
+                                            <div className="font-bold">{u.name}</div>
+                                            <div className="text-xs text-slate-400">{u.email}</div>
+                                        </td>
+                                        <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">{u.role}</span></td>
+                                        <td className="p-4">{u.department}</td>
+                                        <td className="p-4 font-mono">${Number(u.salary||0).toLocaleString()}</td>
+                                        <td className="p-4">
+                                            <button onClick={() => startEdit(u)} className="text-blue-600 hover:text-blue-800 p-2 bg-blue-50 rounded-lg">
+                                                <Icon name="pencil" size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CHAT COMPONENT ---
+        const Chat = ({ t, user, onError }) => {
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState("");
+            const bottomRef = useRef(null);
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const q = window.query(window.collection(window.db, "messages"), window.orderBy("timestamp", "asc"));
+                    const unsub = window.onSnapshot(q, (snap) => {
+                        setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+                    }, (err) => { if(err.code === 'permission-denied' && onError) onError(); });
+                    return () => unsub();
+                }
+            }, []);
+
+            const handleSend = async (e) => {
+                e.preventDefault();
+                if (!newMessage.trim()) return;
+                if (window.firebaseLoaded) {
+                    try {
+                        await window.addDoc(window.collection(window.db, "messages"), {
+                            text: newMessage,
+                            userId: user.uid,
+                            userName: user.name || user.email,
+                            timestamp: window.serverTimestamp()
+                        });
+                        setNewMessage("");
+                    } catch (err) { console.error(err); }
+                }
+            };
+
+            return (
+                <div className="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="p-4 border-b bg-slate-50 font-bold flex justify-between">
+                        <span>{t.chat}</span>
+                        <span className="text-xs text-green-500 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span> Online</span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {messages.map(m => {
+                            const isMe = m.userId === user.uid;
+                            return (
+                                <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[70%] p-3 rounded-2xl ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}`}>
+                                        {!isMe && <p className="text-xs font-bold opacity-50 mb-1">{m.userName}</p>}
+                                        <p>{m.text}</p>
+                                        <p className="text-[10px] opacity-70 text-right mt-1">{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                        <div ref={bottomRef}></div>
+                    </div>
+                    <form onSubmit={handleSend} className="p-4 border-t flex gap-2">
+                        <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder={t.typeMessage} className="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:border-blue-500" />
+                        <button type="submit" className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700"><Icon name="send" size={18} /></button>
+                    </form>
+                </div>
+            );
+        };
+
+        // --- MEETINGS COMPONENT ---
+        const Meetings = ({ t, user, onError }) => {
+            const [meetings, setMeetings] = useState([]);
+            const [showForm, setShowForm] = useState(false);
+            const [newMeeting, setNewMeeting] = useState({ title: '', type: 'online', date: '', time: '' });
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const q = window.query(window.collection(window.db, "meetings"), window.orderBy("timestamp", "desc"));
+                    const unsub = window.onSnapshot(q, (snap) => {
+                        setMeetings(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                    }, (err) => { if(err.code === 'permission-denied' && onError) onError(); });
+                    return () => unsub();
+                }
+            }, []);
+
+            const handleCreate = async (e) => {
+                e.preventDefault();
+                if (window.firebaseLoaded) {
+                    try {
+                        const link = newMeeting.type === 'online' ? `https://meet.jit.si/HR_${Date.now()}` : '';
+                        await window.addDoc(window.collection(window.db, "meetings"), {
+                            ...newMeeting,
+                            link,
+                            createdBy: user.name,
+                            timestamp: window.serverTimestamp()
+                        });
+                        setShowForm(false);
+                        setNewMeeting({ title: '', type: 'online', date: '', time: '' });
+                    } catch (err) { console.error(err); }
+                }
+            };
+
+            const canCreate = user.role === 'HR' || user.role === 'Manager';
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold">{t.meetings}</h2>
+                        {canCreate && <button onClick={() => setShowForm(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"><Icon name="plus" size={16} /> {t.scheduleMeeting}</button>}
+                    </div>
+
+                    {showForm && (
+                        <div className="bg-slate-100 p-6 rounded-xl border border-blue-200 animate-fade-in">
+                            <h3 className="font-bold mb-4">{t.scheduleMeeting}</h3>
+                            <form onSubmit={handleCreate} className="space-y-4">
+                                <input placeholder={t.meetingTitle} required className="w-full p-2 border rounded" value={newMeeting.title} onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <select className="p-2 border rounded" value={newMeeting.type} onChange={e => setNewMeeting({...newMeeting, type: e.target.value})}>
+                                        <option value="online">{t.online}</option>
+                                        <option value="onsite">{t.onsite}</option>
+                                    </select>
+                                    <input type="date" required className="p-2 border rounded" value={newMeeting.date} onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} />
+                                    <input type="time" required className="p-2 border rounded" value={newMeeting.time} onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-slate-600">{t.cancel}</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">{t.create}</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    <div className="grid gap-4">
+                        {meetings.map(m => (
+                            <div key={m.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${m.type === 'online' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}>
+                                        <Icon name={m.type === 'online' ? 'video' : 'users'} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800">{m.title}</h3>
+                                        <p className="text-sm text-slate-500">{m.date} at {m.time} • {t[m.type]}</p>
+                                        <p className="text-xs text-slate-400">By {m.createdBy}</p>
+                                    </div>
+                                </div>
+                                {m.type === 'online' && m.link && (
+                                    <a href={m.link} target="_blank" className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-200">{t.join}</a>
+                                )}
+                            </div>
+                        ))}
+                        {meetings.length === 0 && <p className="text-center text-slate-400 py-8">No scheduled meetings.</p>}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [lang, setLang] = useState('en');
+            const [view, setView] = useState('dashboard');
+            const [sidebarOpen, setSidebarOpen] = useState(false);
+            const [user, setUser] = useState(null); 
+            const [loadingAuth, setLoadingAuth] = useState(true);
+            const [permError, setPermError] = useState(false);
+            const t = TRANSLATIONS[lang];
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.auth) {
+                    const unsub = window.onAuthStateChanged(window.auth, async (authUser) => {
+                        if (authUser) {
+                            try {
+                                const docSnap = await window.getDoc(window.doc(window.db, "users", authUser.uid));
+                                if (docSnap.exists()) {
+                                    setUser({ ...authUser, ...docSnap.data() });
+                                } else {
+                                    setUser({ ...authUser, role: 'Employee', name: authUser.email.split('@')[0] });
+                                }
+                            } catch (e) {
+                                console.error("Error fetching user profile", e);
+                                if(e.code === 'permission-denied') setPermError(true);
+                                setUser({ ...authUser, role: 'Employee' });
+                            }
+                        } else {
+                            setUser(null);
+                        }
+                        setLoadingAuth(false);
+                    });
+                    return () => unsub();
+                } else {
+                    setLoadingAuth(false);
+                }
+            }, []);
+
+            if (loadingAuth) return <div className="h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
+
+            if (!user) {
+                return (
+                    <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={lang === 'ar' ? 'font-arabic' : 'font-sans'}>
+                         <div className="absolute top-4 right-4 z-50">
+                             <button onClick={() => setLang(l => l==='en'?'ar':'en')} className="px-3 py-1 bg-white border rounded shadow">{lang === 'en' ? 'AR' : 'EN'}</button>
+                        </div>
+                        <AuthScreen t={t} onLogin={setUser} lang={lang} onError={() => setPermError(true)} />
+                        {permError && <PermissionHelpModal onClose={() => setPermError(false)} lang={lang} />}
+                    </div>
+                );
+            }
+
+            return (
+                <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={`flex h-screen bg-slate-50 ${lang === 'ar' ? 'font-arabic' : 'font-sans'}`}>
+                    {permError && <PermissionHelpModal onClose={() => setPermError(false)} lang={lang} />}
+                    <Sidebar view={view} setView={setView} lang={lang} t={t} isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} user={user} />
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-20 no-print">
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden text-slate-500"><Icon name="menu" /></button>
+                                <h2 className="text-xl font-bold text-slate-800 hidden md:block">{t.title}</h2>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setLang(l => l==='en'?'ar':'en')} className="px-3 py-1 border rounded text-sm font-bold">{lang === 'en' ? 'AR' : 'EN'}</button>
+                            </div>
+                        </header>
+                        <main className="flex-1 overflow-auto p-4 md:p-8">
+                            {view === 'dashboard' && <Dashboard t={t} user={user} />}
+                            {view === 'attendance' && <Attendance t={t} user={user} onError={() => setPermError(true)} />}
+                            {view === 'employees' && (user.role === 'HR' ? <Employees t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="text-red-500 p-4 bg-red-50 rounded border border-red-200">{t.accessDenied}</div>)}
+                            {view === 'reports' && (user.role === 'HR' || user.role === 'Manager' ? <Reports t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="text-red-500 p-4 bg-red-50 rounded border border-red-200">{t.accessDenied}</div>)}
+                            {view === 'requests' && <Requests t={t} user={user} onError={() => setPermError(true)} />}
+                            {view === 'chat' && <Chat t={t} user={user} onError={() => setPermError(true)} />}
+                            {view === 'meetings' && <Meetings t={t} user={user} onError={() => setPermError(true)} />}
+                            {view === 'payroll' && <div className="flex items-center justify-center h-full text-slate-400">Payroll Module (HR Only)</div>}
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
