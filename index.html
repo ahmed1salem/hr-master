@@ -112,6 +112,11 @@
         const { useState, useEffect, useMemo, useRef } = React;
 
         // --- Translations ---
+        /**
+         * Dictionary containing all UI text strings for internationalization.
+         * keys are language codes ('en', 'ar') and values are objects containing text mappings.
+         * @constant {Object}
+         */
         const TRANSLATIONS = {
             en: {
                 title: "HR Master",
@@ -257,12 +262,30 @@
             }
         };
 
+        /**
+         * Renders a Lucide icon.
+         *
+         * @param {Object} props - The component props.
+         * @param {string} props.name - The name of the icon to render (e.g., 'activity', 'user').
+         * @param {number} [props.size=20] - The size of the icon in pixels. Defaults to 20.
+         * @param {string} [props.className] - Additional CSS classes to apply to the icon.
+         * @returns {JSX.Element} The rendered icon element.
+         */
         const Icon = ({ name, size = 20, className }) => {
             React.useEffect(() => { if (window.lucide) lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
         // --- 🛡️ PERMISSION HELP MODAL ---
+        /**
+         * Modal component displayed when a permission error occurs with Firebase.
+         * Provides instructions on how to fix Firestore security rules.
+         *
+         * @param {Object} props - The component props.
+         * @param {Function} props.onClose - Callback function to close the modal.
+         * @param {string} props.lang - The current language code ('en' or 'ar').
+         * @returns {JSX.Element} The rendered modal component.
+         */
         const PermissionHelpModal = ({ onClose, lang }) => (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
                 <div dir="ltr" className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl overflow-hidden relative">
@@ -299,6 +322,15 @@ service cloud.firestore {
         );
 
         // --- 🔑 AUTH HELP MODAL (Fix for operation-not-allowed) ---
+        /**
+         * Modal component displayed when authentication is not enabled in Firebase.
+         * Provides instructions on how to enable Email/Password sign-in.
+         *
+         * @param {Object} props - The component props.
+         * @param {Function} props.onClose - Callback function to close the modal.
+         * @param {string} props.lang - The current language code ('en' or 'ar').
+         * @returns {JSX.Element} The rendered modal component.
+         */
         const AuthHelpModal = ({ onClose, lang }) => (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
                 <div dir="ltr" className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl overflow-hidden relative">
@@ -321,6 +353,16 @@ service cloud.firestore {
         );
 
         // --- AUTH & LOGIN COMPONENT ---
+        /**
+         * Component for handling user authentication (login and registration).
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object for the current language.
+         * @param {Function} props.onLogin - Callback function triggered upon successful login. Receives the user object.
+         * @param {string} props.lang - The current language code ('en' or 'ar').
+         * @param {Function} props.onError - Callback function triggered if a permission error occurs during registration.
+         * @returns {JSX.Element} The rendered authentication screen.
+         */
         const AuthScreen = ({ t, onLogin, lang, onError }) => {
             const [isRegister, setIsRegister] = useState(false);
             const [formData, setFormData] = useState({ email: '', password: '', name: '' });
@@ -328,6 +370,11 @@ service cloud.firestore {
             const [error, setError] = useState('');
             const [showAuthHelp, setShowAuthHelp] = useState(false);
 
+            /**
+             * Handles the form submission for login or registration.
+             *
+             * @param {Event} e - The form submission event.
+             */
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
@@ -427,6 +474,20 @@ service cloud.firestore {
         };
 
         // --- SIDEBAR ---
+        /**
+         * Sidebar navigation component.
+         * Displays menu items based on the user's role.
+         *
+         * @param {Object} props - The component props.
+         * @param {string} props.view - The current active view ID.
+         * @param {Function} props.setView - Function to change the current view.
+         * @param {string} props.lang - The current language code ('en' or 'ar').
+         * @param {Object} props.t - The translation object for the current language.
+         * @param {boolean} props.isOpen - Whether the sidebar is open (on mobile).
+         * @param {Function} props.toggleSidebar - Function to toggle the sidebar visibility.
+         * @param {Object} props.user - The current user object containing role information.
+         * @returns {JSX.Element} The rendered sidebar component.
+         */
         const Sidebar = ({ view, setView, lang, t, isOpen, toggleSidebar, user }) => {
             const allItems = [
                 { id: 'dashboard', icon: 'layout-dashboard', label: t.dashboard, roles: ['HR', 'Manager', 'Employee'] },
@@ -476,6 +537,14 @@ service cloud.firestore {
         };
 
         // --- DASHBOARD ---
+        /**
+         * Dashboard component displaying user overview statistics.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {Object} props.user - The current user object.
+         * @returns {JSX.Element} The rendered dashboard.
+         */
         const Dashboard = ({ t, user }) => (
             <div className="space-y-6 animate-fade-in">
                 <h2 className="text-2xl font-bold text-slate-800">{t.dashboard}</h2>
@@ -495,6 +564,15 @@ service cloud.firestore {
         );
 
         // --- ATTENDANCE ---
+        /**
+         * Attendance component for checking in/out and viewing attendance logs.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {Object} props.user - The current user object.
+         * @param {Function} props.onError - Callback function triggered on permission errors.
+         * @returns {JSX.Element} The rendered attendance component.
+         */
         const Attendance = ({ t, user, onError }) => {
             const [status, setStatus] = useState(null);
             const [logs, setLogs] = useState([]);
@@ -527,6 +605,12 @@ service cloud.firestore {
                 }
             }, [user]);
 
+            /**
+             * Handles the check-in or check-out action.
+             * Captures the current geolocation and saves the record to Firestore.
+             *
+             * @param {string} type - The type of action ('in' or 'out').
+             */
             const handlePunch = async (type) => {
                 setLoading(true);
                 navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -599,6 +683,16 @@ service cloud.firestore {
         };
 
         // --- REQUESTS ---
+        /**
+         * Requests component for managing leaves, loans, and other requests.
+         * Allows employees to submit requests and managers/HR to approve/reject them.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {Object} props.user - The current user object.
+         * @param {Function} props.onError - Callback function triggered on permission errors.
+         * @returns {JSX.Element} The rendered requests component.
+         */
         const Requests = ({ t, user, onError }) => {
             const [requests, setRequests] = useState([]);
             const [tab, setTab] = useState('my'); // 'my' or 'manage'
@@ -623,6 +717,11 @@ service cloud.firestore {
                 }
             }, [user]);
 
+            /**
+             * Handles the submission of a new request.
+             *
+             * @param {Event} e - The form submission event.
+             */
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 if (window.firebaseLoaded) {
@@ -642,6 +741,12 @@ service cloud.firestore {
                 }
             };
 
+            /**
+             * Updates the status of a request (Approved/Rejected).
+             *
+             * @param {string} id - The ID of the request document.
+             * @param {string} status - The new status to set.
+             */
             const updateStatus = async (id, status) => {
                 if (window.firebaseLoaded) {
                     try {
@@ -725,6 +830,17 @@ service cloud.firestore {
         };
 
         // --- REPORTS ---
+        /**
+         * Reports component for generating and viewing various reports.
+         * Supports employee directory and attendance log reports with filtering.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {string} props.lang - The current language code.
+         * @param {Object} props.user - The current user object.
+         * @param {Function} props.onError - Callback function triggered on permission errors.
+         * @returns {JSX.Element} The rendered reports component.
+         */
         const Reports = ({ t, lang, user, onError }) => {
             const [activeReport, setActiveReport] = useState('employee');
             const [selectedDept, setSelectedDept] = useState('All');
@@ -754,6 +870,9 @@ service cloud.firestore {
                 return emp && emp.department === selectedDept;
             });
 
+            /**
+             * Triggers the browser print dialog.
+             */
             const handlePrint = () => window.print();
 
             return (
@@ -845,6 +964,17 @@ service cloud.firestore {
         };
 
         // --- EMPLOYEES (HR ONLY) ---
+        /**
+         * Employees component for HR management of employee records.
+         * Allows adding, editing, and viewing employee details.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {string} props.lang - The current language code.
+         * @param {Object} props.user - The current user object.
+         * @param {Function} props.onError - Callback function triggered on permission errors.
+         * @returns {JSX.Element} The rendered employees component.
+         */
         const Employees = ({ t, lang, user, onError }) => {
             const [users, setUsers] = useState([]);
             const [showForm, setShowForm] = useState(false);
@@ -862,6 +992,11 @@ service cloud.firestore {
                 }
             }, []);
 
+            /**
+             * Saves a new or edited employee record to Firestore.
+             *
+             * @param {Event} e - The form submission event.
+             */
             const handleSaveUser = async (e) => {
                 e.preventDefault();
                 if (window.firebaseLoaded) {
@@ -894,6 +1029,11 @@ service cloud.firestore {
                 }
             };
 
+            /**
+             * Populates the form with the selected employee's data for editing.
+             *
+             * @param {Object} u - The employee object to edit.
+             */
             const startEdit = (u) => {
                 setNewUser({ name: u.name, email: u.email, role: u.role, department: u.department, salary: u.salary || 0 });
                 setEditingId(u.id);
@@ -964,6 +1104,15 @@ service cloud.firestore {
         };
 
         // --- CHAT COMPONENT ---
+        /**
+         * Chat component for real-time team communication.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {Object} props.user - The current user object.
+         * @param {Function} props.onError - Callback function triggered on permission errors.
+         * @returns {JSX.Element} The rendered chat component.
+         */
         const Chat = ({ t, user, onError }) => {
             const [messages, setMessages] = useState([]);
             const [newMessage, setNewMessage] = useState("");
@@ -980,6 +1129,11 @@ service cloud.firestore {
                 }
             }, []);
 
+            /**
+             * Sends a new chat message to Firestore.
+             *
+             * @param {Event} e - The form submission event.
+             */
             const handleSend = async (e) => {
                 e.preventDefault();
                 if (!newMessage.trim()) return;
@@ -1026,6 +1180,16 @@ service cloud.firestore {
         };
 
         // --- MEETINGS COMPONENT ---
+        /**
+         * Meetings component for scheduling and viewing meetings.
+         * Supports online (Jitsi) and on-site meetings.
+         *
+         * @param {Object} props - The component props.
+         * @param {Object} props.t - The translation object.
+         * @param {Object} props.user - The current user object.
+         * @param {Function} props.onError - Callback function triggered on permission errors.
+         * @returns {JSX.Element} The rendered meetings component.
+         */
         const Meetings = ({ t, user, onError }) => {
             const [meetings, setMeetings] = useState([]);
             const [showForm, setShowForm] = useState(false);
@@ -1041,6 +1205,12 @@ service cloud.firestore {
                 }
             }, []);
 
+            /**
+             * Creates a new meeting and saves it to Firestore.
+             * Generates a Jitsi link for online meetings.
+             *
+             * @param {Event} e - The form submission event.
+             */
             const handleCreate = async (e) => {
                 e.preventDefault();
                 if (window.firebaseLoaded) {
@@ -1113,6 +1283,12 @@ service cloud.firestore {
         };
 
         // --- MAIN APP ---
+        /**
+         * The main application component.
+         * Handles authentication state, language switching, and high-level routing/layout.
+         *
+         * @returns {JSX.Element} The root application component.
+         */
         const App = () => {
             const [lang, setLang] = useState('en');
             const [view, setView] = useState('dashboard');
