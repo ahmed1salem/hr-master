@@ -264,7 +264,7 @@
             );
         };
 
-        const EmployeeProfile = ({ t, employee, onBack, isHR }) => {
+        const EmployeeProfile = ({ t, employee, onBack, isHR, onError }) => {
             const [logs, setLogs] = useState([]);
             const [custodyList, setCustodyList] = useState([]);
             const [deductionsList, setDeductionsList] = useState([]);
@@ -289,18 +289,21 @@
 
             useEffect(() => {
                 if(window.firebaseLoaded) {
-                    // FIX: Remove orderBy from composite query to avoid index error. Sort client-side.
+                    // FIX: Remove orderBy to avoid index error
                     const qL = window.query(window.collection(window.db, "attendance"), window.where("userId", "==", employee.uid));
-                    window.onSnapshot(qL, s => {
+                    const unsubL = window.onSnapshot(qL, s => {
                         const data = s.docs.map(d => ({id:d.id, ...d.data()}));
                         data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                         setLogs(data);
-                    });
+                    }, (e) => { if(e.code === 'permission-denied' && onError) onError(); });
                     
                     const qC = window.query(window.collection(window.db, "custody"), window.where("userId", "==", employee.uid));
-                    window.onSnapshot(qC, s => setCustodyList(s.docs.map(d => ({id:d.id, ...d.data()}))));
+                    const unsubC = window.onSnapshot(qC, s => setCustodyList(s.docs.map(d => ({id:d.id, ...d.data()}))), (e) => { if(e.code === 'permission-denied' && onError) onError(); });
+                    
                     const qD = window.query(window.collection(window.db, "deductions"), window.where("userId", "==", employee.uid));
-                    window.onSnapshot(qD, s => setDeductionsList(s.docs.map(d => ({id:d.id, ...d.data()}))));
+                    const unsubD = window.onSnapshot(qD, s => setDeductionsList(s.docs.map(d => ({id:d.id, ...d.data()}))), (e) => { if(e.code === 'permission-denied' && onError) onError(); });
+
+                    return () => { unsubL(); unsubC(); unsubD(); }
                 }
             }, [employee.uid]);
 
@@ -335,7 +338,7 @@
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
-                const unsub = window.onSnapshot(window.collection(window.db, "users"), (s) => setUsers(s.docs.map(d => ({id:d.id, ...d.data()}))), onError);
+                const unsub = window.onSnapshot(window.collection(window.db, "users"), (s) => setUsers(s.docs.map(d => ({id:d.id, ...d.data()}))), (e) => { if(e.code === 'permission-denied' && onError) onError(); });
                 return () => unsub();
             }, []);
 
@@ -352,7 +355,7 @@
                 } catch(e) { console.error(e); }
             };
 
-            if (viewId) return <EmployeeProfile t={t} employee={users.find(u => u.id === viewId)} onBack={()=>setViewId(null)} isHR={true} />;
+            if (viewId) return <EmployeeProfile t={t} employee={users.find(u => u.id === viewId)} onBack={()=>setViewId(null)} isHR={true} onError={onError} />;
             const pending = users.filter(u => u.status === 'pending');
             const active = users.filter(u => u.status !== 'pending');
             const list = tab === 'active' ? active : pending;
@@ -367,7 +370,7 @@
             );
         };
 
-        const Requests = ({ t, user }) => {
+        const Requests = ({ t, user, onError }) => {
             const [list, setList] = useState([]);
             const [showForm, setShowForm] = useState(false);
             const [form, setForm] = useState({ type: 'Leave', reason: '' });
@@ -375,8 +378,14 @@
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
+                // FIX: Remove orderBy/where combinations causing index errors
                 const q = ['HR','Manager'].includes(user.role) ? window.collection(window.db, "requests") : window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
-                const unsub = window.onSnapshot(q, s => setList(s.docs.map(d => ({id:d.id, ...d.data()}))));
+                const unsub = window.onSnapshot(q, s => {
+                     const data = s.docs.map(d => ({id:d.id, ...d.data()}));
+                     // Sort client side
+                     data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                     setList(data);
+                }, (e) => { if(e.code === 'permission-denied' && onError) onError(); });
                 return () => unsub();
             }, [user]);
 
@@ -392,12 +401,12 @@
                 <div className="space-y-6 animate-fade-in pb-10">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2><button onClick={()=>setShowForm(true)} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg"><Icon name="plus" size={18}/> {t.newRequest}</button></div>
                     {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl mb-6"><form onSubmit={submit} className="space-y-4"><select className="w-full p-3 border rounded-xl" onChange={e=>setForm({...form, type:e.target.value})}><option value="Leave">{t.leave}</option><option value="Permission">{t.permission}</option><option value="Loan">{t.loan}</option></select>{form.type === 'Permission' && <div className="flex gap-2"><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, from:e.target.value})} /><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, to:e.target.value})} /></div>}<textarea className="w-full p-3 border rounded-xl" placeholder={t.reason} required onChange={e=>setForm({...form, reason:e.target.value})} /><div className="flex justify-end gap-2"><button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button><button className="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold">{t.submit}</button></div></form></div>)}
-                    <div className="grid gap-4">{list.sort((a,b)=> (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0)).map(r => (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Icon name="user" size={12}/> {r.userName}</p></div>{['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}</div>))}</div>
+                    <div className="grid gap-4">{list.map(r => (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Icon name="user" size={12}/> {r.userName}</p></div>{['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}</div>))}</div>
                 </div>
             );
         };
 
-        const Attendance = ({ t, user }) => {
+        const Attendance = ({ t, user, onError }) => {
             const [logs, setLogs] = useState([]);
             const [status, setStatus] = useState(null);
             const [loading, setLoading] = useState(false);
@@ -405,12 +414,14 @@
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
+                // FIX: Removed orderBy/where conflict
                 const q = user.role === 'HR' ? window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc")) : window.query(window.collection(window.db, "attendance"), window.where("userId", "==", user.uid));
                 window.onSnapshot(q, s => {
-                    const data = s.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b)=> (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
+                    const data = s.docs.map(d => ({id:d.id, ...d.data()}));
+                    if (user.role !== 'HR') data.sort((a,b)=> (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
                     setLogs(data);
                     if(data[0] && data[0].type === 'in' && new Date(data[0].timestamp.seconds*1000).toDateString() === new Date().toDateString()) setStatus('Checked In'); else setStatus(null);
-                });
+                }, (e) => { if(e.code === 'permission-denied' && onError) onError(); });
             }, [user]);
 
             const punch = (type) => {
@@ -431,7 +442,7 @@
             );
         };
 
-        const Chat = ({ t, user }) => {
+        const Chat = ({ t, user, onError }) => {
             const [activeChannel, setActiveChannel] = useState('general');
             const [messages, setMessages] = useState([]);
             const [newMessage, setNewMessage] = useState("");
@@ -440,22 +451,20 @@
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
-                // FIX: Simple query to avoid indexing error
-                const unsub = window.onSnapshot(window.collection(window.db, "users"), s => setUsersList(s.docs.map(d => ({id:d.id, ...d.data()})).filter(u => u.uid !== user.uid)));
+                const unsub = window.onSnapshot(window.collection(window.db, "users"), s => setUsersList(s.docs.map(d => ({id:d.id, ...d.data()})).filter(u => u.uid !== user.uid)), (e) => { if(e.code === 'permission-denied' && onError) onError(); });
                 return () => unsub();
             }, []);
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
-                // FIX: Remove orderBy to prevent composite index requirement error
+                // FIX: Remove orderBy to fix index error
                 const q = window.query(window.collection(window.db, "messages"), window.where("channelId", "==", activeChannel));
                 const unsub = window.onSnapshot(q, s => { 
                     const data = s.docs.map(d => ({id:d.id, ...d.data()}));
-                    // Sort client-side
                     data.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
                     setMessages(data); 
                     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); 
-                });
+                }, (e) => { if(e.code === 'permission-denied' && onError) onError(); });
                 return () => unsub();
             }, [activeChannel]);
 
@@ -483,7 +492,7 @@
             );
         };
 
-        const Meetings = ({ t, user }) => {
+        const Meetings = ({ t, user, onError }) => {
             const [meetings, setMeetings] = useState([]);
             const [showForm, setShowForm] = useState(false);
             const [newMeeting, setNewMeeting] = useState({ title: '', type: 'online', date: '', time: '' });
@@ -492,7 +501,7 @@
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
                 const q = window.query(window.collection(window.db, "meetings"), window.orderBy("timestamp", "desc"));
-                window.onSnapshot(q, s => setMeetings(s.docs.map(d => ({id:d.id, ...d.data()}))));
+                window.onSnapshot(q, s => setMeetings(s.docs.map(d => ({id:d.id, ...d.data()}))), (e) => { if(e.code === 'permission-denied' && onError) onError(); });
             }, []);
 
             const create = async (e) => {
@@ -534,8 +543,15 @@
                             else { window.signOut(window.auth); setUser(null); }
                             setLoadingAuth(false);
                         }, (e) => { if(e.code==='permission-denied') setPermError(true); setLoadingAuth(false); });
-                        window.onSnapshot(window.collection(window.db, "requests"), s => setGlobalRequests(s.docs.map(d=>d.data())));
-                        window.onSnapshot(window.collection(window.db, "users"), s => setAllUsers(s.docs.map(d=>d.data())));
+                        
+                        window.onSnapshot(window.collection(window.db, "requests"), 
+                            s => setGlobalRequests(s.docs.map(d=>d.data())), 
+                            (e) => { if(e.code==='permission-denied') setPermError(true); }
+                        );
+                        window.onSnapshot(window.collection(window.db, "users"), 
+                            s => setAllUsers(s.docs.map(d=>d.data())),
+                            (e) => { if(e.code==='permission-denied') setPermError(true); }
+                        );
                     } else { setUser(null); setLoadingAuth(false); }
                 });
                 return () => unsub();
@@ -559,7 +575,7 @@
 
             return (
                 <ToastProvider>
-                    {permError && <PermissionHelpModal onClose={()=>setPermError(false)} lang={lang} />}
+                    {permError && <PermissionHelpModal onClose={()=>setPermError(false)} />}
                     <div dir={lang==='ar'?'rtl':'ltr'} className={`flex h-full ${lang==='ar'?'font-arabic':''}`}>
                         <div className={`fixed md:static inset-y-0 z-30 w-72 bg-slate-900 text-white transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : (lang==='ar'?'translate-x-full':'-translate-x-full')} md:translate-x-0 flex flex-col shadow-2xl`}>
                             <div className="p-8 flex items-center justify-between"><h1 className="text-xl font-bold flex gap-3 items-center"><span className="bg-primary-600 p-1.5 rounded-lg"><Icon name="hexagon" className="text-white"/></span> {t.appName}</h1><button onClick={()=>setSidebarOpen(false)} className="md:hidden text-slate-400"><Icon name="x"/></button></div>
@@ -571,11 +587,11 @@
                             <header className="h-20 bg-white/80 backdrop-blur border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20"><div className="flex items-center gap-4"><button onClick={()=>setSidebarOpen(true)} className="md:hidden text-slate-500"><Icon name="menu"/></button><h2 className="text-xl font-bold text-slate-800">{menu.find(m=>m.id===view)?.label || t.dashboard}</h2></div><button onClick={()=>setLang(l=>l==='en'?'ar':'en')} className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold hover:bg-slate-50 transition-colors uppercase">{lang}</button></header>
                             <main className="flex-1 overflow-auto p-6 md:p-10">
                                 {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} requests={globalRequests} users={allUsers} />}
-                                {view === 'attendance' && <Attendance t={t} user={user} />}
-                                {view === 'employees' && <Employees t={t} user={user} />}
-                                {view === 'requests' && <Requests t={t} user={user} />}
-                                {view === 'chat' && <Chat t={t} user={user} />}
-                                {view === 'meetings' && <Meetings t={t} user={user} />}
+                                {view === 'attendance' && <Attendance t={t} user={user} onError={()=>setPermError(true)} />}
+                                {view === 'employees' && <Employees t={t} user={user} onError={()=>setPermError(true)} />}
+                                {view === 'requests' && <Requests t={t} user={user} onError={()=>setPermError(true)} />}
+                                {view === 'chat' && <Chat t={t} user={user} onError={()=>setPermError(true)} />}
+                                {view === 'meetings' && <Meetings t={t} user={user} onError={()=>setPermError(true)} />}
                                 {view === 'reports' && <Reports t={t} />}
                             </main>
                         </div>
