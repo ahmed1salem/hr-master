@@ -140,7 +140,8 @@
                 cancel: "Cancel",
                 submit: "Submit Request",
                 demoMode: "Demo Mode",
-                gpsRequired: "GPS location is required to verify your attendance.",
+                gpsRequired: "High-accuracy GPS location is required.",
+                gpsError: "Could not retrieve location. Please enable GPS.",
                 accessDenied: "Restricted Area: HR/Admin Access Only",
                 addEmployee: "New Employee",
                 save: "Save Changes",
@@ -213,7 +214,8 @@
                 cancel: "إلغاء",
                 submit: "إرسال الطلب",
                 demoMode: "وضع تجريبي",
-                gpsRequired: "مطلوب تفعيل الموقع الجغرافي (GPS) للمتابعة.",
+                gpsRequired: "مطلوب تفعيل GPS بدقة عالية لتسجيل الحضور.",
+                gpsError: "تعذر تحديد الموقع. يرجى تفعيل الـ GPS والتأكد من الصلاحيات.",
                 accessDenied: "منطقة محظورة: خاصة بالموارد البشرية",
                 addEmployee: "موظف جديد",
                 save: "حفظ البيانات",
@@ -259,7 +261,7 @@
             }
         };
 
-        // --- FIXED ICON COMPONENT (Solves removeChild Error) ---
+        // --- FIXED ICON COMPONENT ---
         const Icon = ({ name, size = 20, className }) => {
             const ref = useRef(null);
             
@@ -618,8 +620,15 @@ service cloud.firestore {
                 setLoading(true);
                 if (!navigator.geolocation) { showToast(t.gpsRequired, "error"); setLoading(false); return; }
                 
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                    const loc = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                // ⚡️ HIGH ACCURACY GPS CONFIGURATION ⚡️
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 20000, 
+                    maximumAge: 0
+                };
+
+                const success = async (pos) => {
+                    const loc = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
                     if (window.firebaseLoaded) {
                         try {
                             await window.addDoc(window.collection(window.db, "attendance"), {
@@ -634,7 +643,15 @@ service cloud.firestore {
                         } catch(err) { if(err.code === 'permission-denied' && onError) onError(); }
                     }
                     setLoading(false);
-                }, () => { showToast(t.gpsRequired, "error"); setLoading(false); });
+                };
+
+                const error = (err) => {
+                    console.error("GPS Error:", err);
+                    showToast(t.gpsError || "GPS Error. Please enable high accuracy location.", "error");
+                    setLoading(false);
+                };
+                
+                navigator.geolocation.getCurrentPosition(success, error, options);
             };
 
             return (
@@ -649,11 +666,11 @@ service cloud.firestore {
                             <div className="flex justify-center">
                                 {!status ? 
                                     <button onClick={() => handlePunch('in')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-emerald-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-200 hover:shadow-2xl hover:bg-emerald-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed">
-                                        <span className="relative z-10 flex items-center gap-3"><Icon name="log-in" /> {t.checkIn}</span>
+                                        <span className="relative z-10 flex items-center gap-3"><Icon name="log-in" /> {loading ? t.loading : t.checkIn}</span>
                                     </button>
                                 : 
                                     <button onClick={() => handlePunch('out')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-red-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-200 hover:shadow-2xl hover:bg-red-600 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed">
-                                        <span className="relative z-10 flex items-center gap-3"><Icon name="log-out" /> {t.checkOut}</span>
+                                        <span className="relative z-10 flex items-center gap-3"><Icon name="log-out" /> {loading ? t.loading : t.checkOut}</span>
                                     </button>
                                 }
                             </div>
