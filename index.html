@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Master - Professional Suite</title>
+    <title>HR Master - Enterprise Edition</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -14,17 +14,29 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#1e293b', 900: '#0f172a' },
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+                    },
+                    fontFamily: { sans: ['Inter', 'Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Firebase SDKs (Modular) -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
-        // --- ✅ LIVE FIREBASE CONFIGURATION ✅ ---
         const firebaseConfig = {
             apiKey: "AIzaSyBTLUtRTuECf4SKZ_Jf33Gr1oFvnq1OnnQ",
             authDomain: "hr-master-127af.firebaseapp.com",
@@ -34,294 +46,127 @@
             appId: "1:475367853980:web:cb5bf55397b2a7ffb30259"
         };
 
-        // Initialize Firebase safely
-        let app, auth, db;
         try {
-            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyD-YOUR-API-KEY-HERE") {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                window.firebaseLoaded = true;
-                console.log("Firebase Connected Successfully ✅");
-            } else {
-                console.warn("Firebase config not set. Running in Demo Mode.");
-                window.firebaseLoaded = false;
-            }
+            const app = initializeApp(firebaseConfig);
+            window.auth = getAuth(app);
+            window.db = getFirestore(app);
+            window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+            window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+            window.signOut = signOut;
+            window.onAuthStateChanged = onAuthStateChanged;
+            window.collection = collection;
+            window.doc = doc;
+            window.setDoc = setDoc;
+            window.getDoc = getDoc;
+            window.addDoc = addDoc;
+            window.updateDoc = updateDoc;
+            window.deleteDoc = deleteDoc;
+            window.query = query;
+            window.where = where;
+            window.onSnapshot = onSnapshot;
+            window.orderBy = orderBy;
+            window.serverTimestamp = serverTimestamp;
+            window.firebaseLoaded = true;
+            console.log("System Online ✅");
         } catch (e) {
             console.error("Firebase Init Error:", e);
             window.firebaseLoaded = false;
         }
-
-        // Expose to window for React
-        window.db = db;
-        window.auth = auth;
-        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-        window.signOut = signOut;
-        window.onAuthStateChanged = onAuthStateChanged;
-        window.collection = collection;
-        window.doc = doc;
-        window.setDoc = setDoc;
-        window.getDoc = getDoc;
-        window.addDoc = addDoc;
-        window.updateDoc = updateDoc;
-        window.deleteDoc = deleteDoc;
-        window.query = query;
-        window.where = where;
-        window.onSnapshot = onSnapshot;
-        window.orderBy = orderBy;
-        window.serverTimestamp = serverTimestamp;
     </script>
 
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
         .font-arabic { font-family: 'Cairo', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @media print {
-            body { background: white; font-size: 11pt; }
+            @page { size: A4; margin: 10mm; }
+            body { background: white; font-size: 11pt; -webkit-print-color-adjust: exact; }
             .no-print, nav, header, button:not(.print-allow) { display: none !important; }
             .print-only { display: block !important; }
-            .print-container { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; border: none; }
-            .card-shadow { box-shadow: none !important; border: 1px solid #eee; }
+            .print-container { position: relative; width: 100%; box-shadow: none; border: none; margin: 0; padding: 0; }
+            .card-shadow { box-shadow: none !important; border: 1px solid #ddd; }
         }
     </style>
 </head>
-<body class="text-slate-900 antialiased">
-    <div id="root"></div>
+<body class="text-slate-800 antialiased h-screen overflow-hidden">
+    <div id="root" class="h-full"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef, useCallback } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- Translations ---
         const TRANSLATIONS = {
             en: {
-                title: "HR Master",
-                dashboard: "Dashboard",
-                attendance: "Attendance",
-                payroll: "Payroll",
-                requests: "Requests",
-                chat: "Team Chat",
-                meetings: "Meetings",
-                employees: "Employees",
-                reports: "Reports",
-                settings: "Settings",
-                login: "Sign In",
-                register: "Create Account",
-                email: "Work Email",
-                password: "Password",
-                fullName: "Full Name",
-                department: "Department",
-                role: "Role",
-                salary: "Salary",
-                welcome: "Good Morning,",
-                checkIn: "Punch In",
-                checkOut: "Punch Out",
-                status: "Status",
-                online: "Online",
-                onsite: "On-Site",
-                create: "Create",
-                cancel: "Cancel",
-                submit: "Submit Request",
-                demoMode: "Demo Mode",
-                gpsRequired: "GPS location is required.",
-                accessDenied: "Restricted Area: HR/Admin Access Only",
-                addEmployee: "New Employee",
-                save: "Save Changes",
-                loginError: "Invalid credentials",
-                permErrorDesc: "Permission Denied. Check Firebase Rules.",
-                noAccount: "Don't have an account? Register.",
-                haveAccount: "Already have an account? Sign In.",
-                roles: { hr: "HR Manager", manager: "Manager", employee: "Employee" },
-                edit: "Edit",
-                delete: "Delete",
-                confirmDelete: "Are you sure you want to delete this user?",
-                actions: "Actions",
-                printReport: "Export to PDF",
-                reportType: "Report Type",
-                allDepts: "All Departments",
-                filterByDept: "Department Filter",
-                employeeReport: "Staff Directory",
-                attendanceReport: "Attendance Logs",
-                totalEmployees: "Total Staff",
-                totalSalary: "Payroll Estimate",
-                generatedOn: "Generated on",
-                selectReport: "Select a report type to generate data.",
-                myRequests: "My Requests",
-                manageRequests: "Approvals",
-                newRequest: "New Request",
-                type: "Type",
-                reason: "Description",
-                pending: "Pending",
-                approved: "Approved",
-                rejected: "Rejected",
-                approve: "Approve",
-                reject: "Reject",
-                loan: "Loan",
-                leave: "Leave",
-                overtime: "Overtime",
-                reqSuccess: "Request submitted successfully",
-                typeMessage: "Type a message...",
-                scheduleMeeting: "Schedule Meeting",
-                meetingTitle: "Meeting Subject",
-                join: "Join Meeting",
-                quickActions: "Quick Actions",
-                recentActivity: "Recent Activity",
-                attendanceOverview: "Attendance Overview",
-                loading: "Loading...",
-                channels: "Channels",
-                directMessages: "Direct Messages",
-                searchStaff: "Search staff...",
-                generalChannel: "General",
-                deptChannel: "My Department",
-                accountPending: "Account Pending Approval",
-                pendingMessage: "Your account has been created successfully and is currently pending approval by the HR department. Please check back later.",
-                joinRequests: "Join Requests",
-                activeEmployees: "Active Employees",
-                approveUser: "Approve",
-                rejectUser: "Reject"
+                appName: "HR Master", dashboard: "Dashboard", attendance: "Attendance", employees: "Staff Directory", reports: "Analytics", requests: "Requests", chat: "Team Connect", meetings: "Meetings",
+                login: "Sign In", register: "Join Company", email: "Email Address", password: "Password", fullName: "Full Name", department: "Department", role: "Job Title", salary: "Base Salary",
+                welcome: "Welcome back,", checkIn: "Punch In", checkOut: "Punch Out", status: "Status", online: "Online", onsite: "On-Site", create: "Create", cancel: "Cancel", submit: "Submit",
+                gpsRequired: "GPS Location Required", accessDenied: "Restricted Access", addEmployee: "Add Employee", save: "Save Changes", loginError: "Invalid credentials.",
+                noAccount: "New here? Create an account.", haveAccount: "Have an account? Sign in.", roles: { hr: "HR Manager", manager: "Manager", employee: "Employee" },
+                edit: "Edit", delete: "Delete", confirmDelete: "Are you sure? This action is irreversible.", actions: "Actions", printReport: "Print PDF", reportType: "Report Type",
+                allDepts: "All Departments", filterByDept: "Filter Department", employeeReport: "Employee Profile", attendanceReport: "Attendance Log",
+                totalEmployees: "Total Staff", totalSalary: "Est. Payroll", generatedOn: "Generated:", myRequests: "My Requests", manageRequests: "Approvals", newRequest: "New Request",
+                type: "Type", reason: "Description", pending: "Pending", approved: "Approved", rejected: "Rejected", approve: "Approve", reject: "Reject",
+                loan: "Loan", leave: "Leave", permission: "Exit Permit", overtime: "Overtime", reqSuccess: "Request Sent Successfully",
+                scheduleMeeting: "Schedule Meeting", meetingTitle: "Subject", join: "Join", accountPending: "Account Under Review",
+                pendingMessage: "Your account is currently pending HR approval.", joinRequests: "Join Requests", activeEmployees: "Active Staff",
+                approveUser: "Approve", rejectUser: "Decline", viewProfile: "Full Profile", position: "Position", shiftStart: "Shift Start", shiftEnd: "Shift End",
+                netSalary: "Net Salary", deductions: "Deductions", custody: "Assets", lateness: "Late (min)", addCustody: "Add Asset", addDeduction: "Add Deduction",
+                itemName: "Item Name", amount: "Amount", date: "Date", from: "From", to: "To", cost: "Cost", pendingActions: "Pending Actions",
+                channels: "Channels", directMessages: "Direct Messages", generalChannel: "General", deptChannel: "My Dept"
             },
             ar: {
-                title: "الموارد البشرية",
-                dashboard: "لوحة التحكم",
-                attendance: "الحضور والانصراف",
-                payroll: "مسير الرواتب",
-                requests: "الطلبات",
-                chat: "الفريق",
-                meetings: "الاجتماعات",
-                employees: "الموظفين",
-                reports: "التقارير",
-                settings: "الإعدادات",
-                login: "تسجيل الدخول",
-                register: "حساب جديد",
-                email: "البريد العملي",
-                password: "كلمة المرور",
-                fullName: "الاسم الثلاثي",
-                department: "القسم",
-                role: "المسمى الوظيفي",
-                salary: "الراتب الأساسي",
-                welcome: "صباح الخير،",
-                checkIn: "تسجيل دخول",
-                checkOut: "تسجيل خروج",
-                status: "الحالة",
-                online: "متصل",
-                onsite: "في المقر",
-                create: "إنشاء",
-                cancel: "إلغاء",
-                submit: "إرسال الطلب",
-                demoMode: "وضع تجريبي",
-                gpsRequired: "مطلوب تفعيل الموقع الجغرافي (GPS).",
-                accessDenied: "منطقة محظورة: خاصة بالموارد البشرية",
-                addEmployee: "موظف جديد",
-                save: "حفظ البيانات",
-                loginError: "بيانات الدخول غير صحيحة",
-                permErrorDesc: "خطأ في الصلاحيات. تأكد من إعدادات Firebase.",
-                noAccount: "ليس لديك حساب؟ سجل الآن.",
-                haveAccount: "لديك حساب؟ سجل دخولك.",
-                roles: { hr: "مدير موارد بشرية", manager: "مدير قسم", employee: "موظف" },
-                edit: "تعديل",
-                delete: "حذف",
-                confirmDelete: "هل أنت متأكد من حذف هذا الموظف؟",
-                actions: "إجراءات",
-                printReport: "تصدير PDF",
-                reportType: "نوع التقرير",
-                allDepts: "كل الأقسام",
-                filterByDept: "تصفية حسب القسم",
-                employeeReport: "دليل الموظفين",
-                attendanceReport: "سجل الحضور",
-                totalEmployees: "عدد الموظفين",
-                totalSalary: "إجمالي الرواتب",
-                generatedOn: "تاريخ الإصدار",
-                selectReport: "اختر نوع التقرير لعرض البيانات.",
-                myRequests: "طلباتي",
-                manageRequests: "الموافقات",
-                newRequest: "طلب جديد",
-                type: "النوع",
-                reason: "التفاصيل",
-                pending: "قيد الانتظار",
-                approved: "مقبول",
-                rejected: "مرفوض",
-                approve: "قبول",
-                reject: "رفض",
-                loan: "سلفة مالية",
-                leave: "إجازة",
-                overtime: "عمل إضافي",
-                reqSuccess: "تم رفع الطلب بنجاح",
-                typeMessage: "اكتب رسالتك هنا...",
-                scheduleMeeting: "حجز اجتماع",
-                meetingTitle: "موضوع الاجتماع",
-                join: "انضمام",
-                quickActions: "وصول سريع",
-                recentActivity: "آخر الأنشطة",
-                attendanceOverview: "نظرة عامة",
-                loading: "جاري التحميل...",
-                channels: "القنوات",
-                directMessages: "الرسائل المباشرة",
-                searchStaff: "بحث عن موظف...",
-                generalChannel: "القناة العامة",
-                deptChannel: "قسمي",
-                accountPending: "الحساب قيد المراجعة",
-                pendingMessage: "تم إنشاء حسابك بنجاح وهو الآن قيد المراجعة من قبل قسم الموارد البشرية. يرجى المحاولة لاحقاً.",
-                joinRequests: "طلبات الانضمام",
-                activeEmployees: "الموظفين الحاليين",
-                approveUser: "قبول العضوية",
-                rejectUser: "رفض"
+                appName: "الموارد البشرية", dashboard: "لوحة التحكم", attendance: "الحضور والانصراف", employees: "دليل الموظفين", reports: "التقارير والتحليلات", requests: "الطلبات والإجازات",
+                chat: "التواصل الداخلي", meetings: "الاجتماعات", login: "دخول النظام", register: "طلب انضمام", email: "البريد الإلكتروني", password: "كلمة المرور",
+                fullName: "الاسم الرباعي", department: "القسم / الإدارة", role: "المسمى الوظيفي", salary: "الراتب الأساسي", welcome: "أهلاً بك،",
+                checkIn: "تسجيل حضور", checkOut: "تسجيل انصراف", status: "الحالة", online: "متصل", onsite: "في المقر", create: "إنشاء", cancel: "إلغاء", submit: "إرسال الطلب",
+                gpsRequired: "يجب تفعيل الـ GPS", accessDenied: "وصول مقيد للإدارة فقط", addEmployee: "موظف جديد", save: "حفظ البيانات", loginError: "بيانات خاطئة.",
+                noAccount: "موظف جديد؟ سجل هنا.", haveAccount: "لديك حساب؟ سجل دخولك.", roles: { hr: "مدير موارد بشرية", manager: "مدير قسم", employee: "موظف" },
+                edit: "تعديل", delete: "حذف", confirmDelete: "هل أنت متأكد؟ لا يمكن التراجع.", actions: "إجراءات", printReport: "طباعة PDF", reportType: "نوع التقرير",
+                allDepts: "كل الأقسام", filterByDept: "فلتر القسم", employeeReport: "ملف الموظف", attendanceReport: "سجل الحضور", totalEmployees: "عدد الموظفين",
+                totalSalary: "إجمالي الرواتب", generatedOn: "تاريخ التقرير:", myRequests: "طلباتي", manageRequests: "الموافقات", newRequest: "طلب جديد",
+                type: "النوع", reason: "التفاصيل", pending: "قيد المراجعة", approved: "مقبول", rejected: "مرفوض", approve: "موافقة", reject: "رفض",
+                loan: "سلفة مالية", leave: "إجازة", permission: "إذن انصراف", overtime: "عمل إضافي", reqSuccess: "تم إرسال الطلب بنجاح",
+                scheduleMeeting: "جدولة اجتماع", meetingTitle: "الموضوع", join: "انضمام", accountPending: "الحساب قيد المراجعة",
+                pendingMessage: "تم إنشاء حسابك بنجاح. يرجى انتظار موافقة قسم الموارد البشرية.", joinRequests: "طلبات الانضمام", activeEmployees: "الموظفين",
+                approveUser: "تفعيل", rejectUser: "رفض", viewProfile: "الملف الكامل", position: "المنصب", shiftStart: "بداية الشفت", shiftEnd: "نهاية الشفت",
+                netSalary: "صافي الراتب", deductions: "الخصومات والجزاءات", custody: "الُعهد", lateness: "تأخير (دقيقة)", addCustody: "إضافة عهدة",
+                addDeduction: "إضافة خصم", itemName: "اسم العهدة", amount: "المبلغ", date: "التاريخ", from: "من", to: "إلى", cost: "التكلفة", pendingActions: "مهام معلقة",
+                channels: "القنوات", directMessages: "رسائل مباشرة", generalChannel: "عام", deptChannel: "قسمي"
             }
         };
 
-        // --- FIXED ICON COMPONENT ---
         const Icon = ({ name, size = 20, className }) => {
             const ref = useRef(null);
             useEffect(() => {
                 if (window.lucide && ref.current) {
                     ref.current.innerHTML = '';
-                    const i = document.createElement('i');
-                    i.setAttribute('data-lucide', name);
-                    ref.current.appendChild(i);
+                    const i = document.createElement('i'); i.setAttribute('data-lucide', name); ref.current.appendChild(i);
                     window.lucide.createIcons({ root: ref.current, nameAttr: 'data-lucide', attrs: { width: size, height: size, class: className } });
                 }
             }, [name, size, className]);
-            return <span ref={ref} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} />;
+            return <span ref={ref} style={{ display: 'inline-flex' }}></span>;
         };
 
-        // --- 🍞 TOAST NOTIFICATION SYSTEM ---
         const ToastContext = React.createContext();
         const ToastProvider = ({ children }) => {
             const [toasts, setToasts] = useState([]);
             const addToast = (msg, type = 'info') => {
-                const id = Date.now();
-                setToasts(prev => [...prev, { id, msg, type }]);
-                setTimeout(() => removeToast(id), 4000);
+                const id = Date.now(); setToasts(prev => [...prev, { id, msg, type }]);
+                setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
             };
-            const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
             return (
                 <ToastContext.Provider value={addToast}>
                     {children}
-                    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+                    <div className="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
                         {toasts.map(t => (
-                            <div key={t.id} className={`pointer-events-auto min-w-[300px] p-4 rounded-xl shadow-lg border-l-4 transform transition-all duration-300 animate-slide-up flex items-center justify-between bg-white ${t.type === 'success' ? 'border-green-500' : t.type === 'error' ? 'border-red-500' : 'border-blue-500'}`}>
-                                <div className="flex items-center gap-3">
-                                    <Icon name={t.type === 'success' ? 'check-circle' : t.type === 'error' ? 'alert-circle' : 'info'} className={t.type === 'success' ? 'text-green-500' : t.type === 'error' ? 'text-red-500' : 'text-blue-500'} />
-                                    <p className="text-sm font-medium text-slate-800">{t.msg}</p>
-                                </div>
-                                <button onClick={() => removeToast(t.id)} className="text-slate-400 hover:text-slate-600"><Icon name="x" size={14} /></button>
+                            <div key={t.id} className={`pointer-events-auto min-w-[320px] p-4 rounded-xl shadow-xl border-l-4 flex items-center gap-3 bg-white animate-fade-in ${t.type === 'success' ? 'border-green-500 text-green-700' : t.type === 'error' ? 'border-red-500 text-red-700' : 'border-blue-500 text-blue-700'}`}>
+                                <Icon name={t.type === 'success' ? 'check-circle' : 'info'} size={20} /><span className="font-semibold text-sm">{t.msg}</span>
                             </div>
                         ))}
                     </div>
@@ -330,627 +175,408 @@
         };
         const useToast = () => React.useContext(ToastContext);
 
-        // --- 🛡️ PERMISSION HELP MODAL ---
-        const PermissionHelpModal = ({ onClose, lang }) => (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-                <div dir="ltr" className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative border border-slate-100">
-                    <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-700"><Icon name="x" /></button>
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600"><Icon name="shield-alert" size={24} /></div>
-                        <div><h3 className="text-xl font-bold text-slate-900">Database Permissions Required</h3><p className="text-sm text-slate-500">Firebase Firestore Security Rules</p></div>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-4 leading-relaxed">{lang === 'ar' ? "قواعد الأمان الحالية تمنع الوصول. يرجى نسخ الكود أدناه ولصقه في Firebase Console > Firestore Database > Rules." : "Your security rules are blocking the app. Go to Firebase Console > Firestore Database > Rules and paste this configuration:"}</p>
-                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs overflow-x-auto mb-6 border border-slate-700"><pre>{`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}`}</pre></div>
-                    <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">{lang === 'ar' ? "تم التحديث، أعد تحميل الصفحة" : "I Updated It, Reload Page"}</button>
+        const PermissionHelpModal = ({ onClose }) => (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative border border-slate-100">
+                    <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><Icon name="x" /></button>
+                    <h3 className="text-xl font-bold text-red-600 mb-4">Database Access Required</h3>
+                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs overflow-x-auto mb-6"><pre>{`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}`}</pre></div>
+                    <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800">I Updated Rules, Reload</button>
                 </div>
             </div>
         );
 
-        // --- ⏳ PENDING APPROVAL SCREEN ---
         const PendingScreen = ({ t, onLogout }) => (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
-                <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-lg border border-white/50 backdrop-blur-xl text-center">
-                    <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500 animate-pulse">
-                        <Icon name="clock" size={40} />
-                    </div>
-                    <h2 className="text-2xl font-bold text-slate-900 mb-4">{t.accountPending}</h2>
-                    <p className="text-slate-600 mb-8 leading-relaxed">{t.pendingMessage}</p>
-                    <button onClick={onLogout} className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-colors">
-                        <Icon name="log-out" size={18} className="inline mr-2" /> Logout
-                    </button>
+            <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+                <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-lg text-center border border-slate-200">
+                    <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500 animate-pulse"><Icon name="clock" size={40} /></div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-3">{t.accountPending}</h2>
+                    <p className="text-slate-500 mb-8 leading-relaxed">{t.pendingMessage}</p>
+                    <button onClick={onLogout} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors flex items-center gap-2 mx-auto"><Icon name="log-out" size={18} /> Logout</button>
                 </div>
             </div>
         );
 
-        // --- 1. Auth Screen (Updated for Pending Status) ---
-        const AuthScreen = ({ t, onLogin, lang, onError }) => {
+        const AuthScreen = ({ t, onLogin, onError }) => {
             const [isRegister, setIsRegister] = useState(false);
             const [formData, setFormData] = useState({ email: '', password: '', name: '' });
             const [loading, setLoading] = useState(false);
             const showToast = useToast();
 
             const handleSubmit = async (e) => {
-                e.preventDefault();
-                setLoading(true);
+                e.preventDefault(); setLoading(true);
                 if (!window.firebaseLoaded) { setTimeout(() => onLogin({ uid: 'demo', email: formData.email, role: 'HR', name: 'Demo User', status: 'active' }), 1000); return; }
                 try {
                     if (isRegister) {
                         const cred = await window.createUserWithEmailAndPassword(window.auth, formData.email, formData.password);
-                        const user = cred.user;
-                        try {
-                            // ✅ NEW USER: Status = 'pending'
-                            await window.setDoc(window.doc(window.db, "users", user.uid), { 
-                                uid: user.uid, 
-                                name: formData.name, 
-                                email: formData.email, 
-                                role: 'Employee', 
-                                department: 'General', 
-                                salary: 0, 
-                                status: 'pending', // Default status
-                                createdAt: window.serverTimestamp() 
-                            });
-                        } catch(e) { if(e.code === 'permission-denied') onError(); }
-                    } else {
-                        await window.signInWithEmailAndPassword(window.auth, formData.email, formData.password);
-                    }
-                    // Auth state change will handle the redirect
-                } catch (err) { console.error(err); showToast(t.loginError || err.message, "error"); } finally { setLoading(false); }
+                        try { await window.setDoc(window.doc(window.db, "users", cred.user.uid), { uid: cred.user.uid, name: formData.name, email: formData.email, role: 'Employee', department: 'General', salary: 0, status: 'pending', createdAt: window.serverTimestamp() }); } 
+                        catch(e) { if(e.code === 'permission-denied') onError(); }
+                    } else { await window.signInWithEmailAndPassword(window.auth, formData.email, formData.password); }
+                } catch (err) { showToast(t.loginError, "error"); } finally { setLoading(false); }
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
-                    <div className="bg-white p-8 md:p-10 rounded-3xl shadow-xl w-full max-w-md border border-white/50 backdrop-blur-xl animate-slide-up">
-                        <div className="flex justify-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200"><Icon name="activity" size={32} /></div></div>
+                <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+                    <div className="bg-white p-8 md:p-12 rounded-3xl shadow-2xl w-full max-w-md border border-slate-100">
+                        <div className="flex justify-center mb-8"><div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary-200"><Icon name="hexagon" size={32} /></div></div>
                         <h2 className="text-3xl font-bold text-center mb-2 text-slate-900">{isRegister ? t.register : t.login}</h2>
-                        <p className="text-center text-slate-500 mb-8 text-sm">Welcome back to your workspace</p>
                         <form onSubmit={handleSubmit} className="space-y-5">
-                            {isRegister && (<div><label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.fullName}</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>)}
-                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.email}</label><input type="email" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.password}</label><input type="password" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
-                            <button type="submit" disabled={loading} className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center gap-2">{loading ? <Icon name="loader" className="animate-spin" /> : (isRegister ? t.create : t.login)}</button>
+                            {isRegister && (<div><label className="text-xs font-bold text-slate-500 uppercase">{t.fullName}</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none mt-1" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>)}
+                            <div><label className="text-xs font-bold text-slate-500 uppercase">{t.email}</label><input type="email" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none mt-1" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+                            <div><label className="text-xs font-bold text-slate-500 uppercase">{t.password}</label><input type="password" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none mt-1" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+                            <button type="submit" disabled={loading} className="w-full py-3.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 disabled:opacity-70 flex justify-center">{loading ? "..." : (isRegister ? t.create : t.login)}</button>
                         </form>
-                        <div className="mt-6 text-center"><button onClick={() => setIsRegister(!isRegister)} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">{isRegister ? t.haveAccount : t.noAccount}</button></div>
+                        <div className="mt-6 text-center"><button onClick={() => setIsRegister(!isRegister)} className="text-sm font-medium text-primary-600 hover:text-primary-800">{isRegister ? t.haveAccount : t.noAccount}</button></div>
                     </div>
                 </div>
             );
         };
 
-        // --- 2. Sidebar ---
-        const Sidebar = ({ view, setView, lang, t, isOpen, toggleSidebar, user }) => {
-            const menuItems = [
-                { id: 'dashboard', icon: 'layout-dashboard', label: t.dashboard, roles: ['HR', 'Manager', 'Employee'] },
-                { id: 'attendance', icon: 'clock', label: t.attendance, roles: ['HR', 'Manager', 'Employee'] },
-                { id: 'requests', icon: 'file-check', label: t.requests, roles: ['HR', 'Manager', 'Employee'] },
-                { id: 'employees', icon: 'users', label: t.employees, roles: ['HR', 'Manager'] }, 
-                { id: 'reports', icon: 'bar-chart-3', label: t.reports, roles: ['HR', 'Manager'] },
-                { id: 'meetings', icon: 'video', label: t.meetings, roles: ['HR', 'Manager', 'Employee'] },
-                { id: 'chat', icon: 'message-square', label: t.chat, roles: ['HR', 'Manager', 'Employee'] },
-            ];
-            const userRole = user?.role || 'Employee';
-            const availableItems = menuItems.filter(item => item.roles.includes(userRole));
+        const Dashboard = ({ t, user, setView, requests = [], users = [] }) => {
+            const pendingRequests = requests.filter(r => r.status === 'Pending').length;
+            const pendingUsers = users.filter(u => u.status === 'pending').length;
+            const isManager = ['HR', 'Manager'].includes(user.role);
 
             return (
-                <>
-                    {isOpen && <div onClick={toggleSidebar} className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm transition-opacity"></div>}
-                    <div className={`fixed md:static z-30 h-full w-72 bg-slate-900 text-white flex flex-col shadow-2xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : (lang === 'ar' ? 'translate-x-full' : '-translate-x-full')} md:translate-x-0`}>
-                        <div className="p-8 flex items-center justify-between"><h1 className="text-2xl font-bold flex items-center gap-3 tracking-tight"><div className="bg-indigo-600 p-1.5 rounded-lg"><Icon name="activity" size={20} className="text-white" /></div>HR Master</h1><button onClick={toggleSidebar} className="md:hidden text-slate-400 hover:text-white"><Icon name="x" /></button></div>
-                        <div className="px-6 mb-6"><div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-sm font-bold shadow-lg">{user?.name?.charAt(0).toUpperCase() || 'U'}</div><div className="overflow-hidden"><p className="text-sm font-semibold truncate">{user?.name || 'User'}</p><p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">{t.roles[userRole.toLowerCase()] || userRole}</p></div></div></div>
-                        <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">{availableItems.map(item => (<button key={item.id} onClick={() => { setView(item.id); if(window.innerWidth < 768) toggleSidebar(); }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group ${view === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 font-medium' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Icon name={item.icon} size={20} className={`transition-colors ${view === item.id ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} /><span>{item.label}</span>{view === item.id && <Icon name="chevron-right" size={14} className="ml-auto opacity-50" />}</button>))}</nav>
-                        <div className="p-4 mt-auto"><button onClick={() => window.auth ? window.signOut(window.auth) : window.location.reload()} className="w-full py-3 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50 border border-transparent rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 text-slate-400"><Icon name="log-out" size={16} /> Logout</button></div>
+                <div className="space-y-8 animate-fade-in pb-10">
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                        <div className="relative z-10"><h2 className="text-3xl font-bold mb-2">{t.welcome} {user.name} 👋</h2><p className="opacity-80 text-sm max-w-lg">Manage your team, track attendance, and handle requests efficiently.</p></div>
+                        <Icon name="activity" size={180} className="absolute -right-10 -bottom-10 text-white opacity-5" />
                     </div>
-                </>
-            );
-        };
-
-        // --- 3. Dashboard ---
-        const Dashboard = ({ t, user, setView }) => {
-            const stats = [
-                { title: t.status, val: "Active", icon: "activity", color: "text-green-600", bg: "bg-green-100" },
-                { title: t.department, val: user?.department || "General", icon: "briefcase", color: "text-blue-600", bg: "bg-blue-100" },
-                { title: t.role, val: user?.role, icon: "shield", color: "text-purple-600", bg: "bg-purple-100" },
-            ];
-            return (
-                <div className="space-y-8 animate-slide-up">
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 relative overflow-hidden"><div className="relative z-10"><h2 className="text-3xl font-bold mb-2">{t.welcome} {user?.name?.split(' ')[0]} 👋</h2><p className="opacity-90">Here's what's happening in your workspace today.</p></div><Icon name="activity" size={150} className="absolute -right-6 -bottom-6 text-white opacity-10" /></div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((stat, i) => (<div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4"><div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}><Icon name={stat.icon} size={28} /></div><div><p className="text-sm text-slate-500 font-medium">{stat.title}</p><h3 className="text-lg font-bold text-slate-800">{stat.val}</h3></div></div>))}</div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="zap" className="text-amber-500" /> {t.quickActions}</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><button onClick={() => setView('attendance')} className="p-4 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="clock" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.attendance}</span></button><button onClick={() => setView('requests')} className="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="file-plus" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.newRequest}</span></button><button onClick={() => setView('chat')} className="p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="message-square" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.chat}</span></button><button onClick={() => setView('meetings')} className="p-4 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-100 hover:border-purple-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="video" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.meetings}</span></button></div></div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center"><h3 className="font-bold text-lg mb-4 text-slate-700">{t.attendanceOverview}</h3><div className="space-y-4"><div><div className="flex justify-between text-sm mb-1 text-slate-600"><span>Present</span><span className="font-bold text-emerald-600">92%</span></div><div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-emerald-500 h-2.5 rounded-full" style={{width: '92%'}}></div></div></div><div><div className="flex justify-between text-sm mb-1 text-slate-600"><span>Late</span><span className="font-bold text-amber-600">5%</span></div><div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-amber-500 h-2.5 rounded-full" style={{width: '5%'}}></div></div></div><div><div className="flex justify-between text-sm mb-1 text-slate-600"><span>Absent</span><span className="font-bold text-red-600">3%</span></div><div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-red-500 h-2.5 rounded-full" style={{width: '3%'}}></div></div></div></div></div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4"><div className="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center"><Icon name="user-check" size={28}/></div><div><p className="text-sm text-slate-500 font-medium">{t.status}</p><h3 className="text-lg font-bold text-slate-800">Active</h3></div></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4"><div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center"><Icon name="briefcase" size={28}/></div><div><p className="text-sm text-slate-500 font-medium">{t.department}</p><h3 className="text-lg font-bold text-slate-800">{user.department}</h3></div></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4"><div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center"><Icon name="shield" size={28}/></div><div><p className="text-sm text-slate-500 font-medium">{t.role}</p><h3 className="text-lg font-bold text-slate-800">{user.role}</h3></div></div>
                     </div>
-                </div>
-            );
-        };
-
-        // --- 4. Attendance ---
-        const Attendance = ({ t, user, onError }) => {
-            const [status, setStatus] = useState(null);
-            const [logs, setLogs] = useState([]);
-            const [loading, setLoading] = useState(false);
-            const [currentTime, setCurrentTime] = useState(new Date());
-            const showToast = useToast();
-
-            useEffect(() => { const timer = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(timer); }, []);
-            useEffect(() => {
-                if (window.firebaseLoaded && window.db && user) {
-                    let q = user.role === 'HR' ? window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc")) : window.query(window.collection(window.db, "attendance"), window.where("userId", "==", user.uid));
-                    const unsub = window.onSnapshot(q, (snap) => {
-                        let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        if(user.role !== 'HR') data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                        setLogs(data);
-                        const today = new Date().toDateString();
-                        const lastLog = data[0];
-                        if (lastLog && new Date(lastLog.timestamp?.seconds * 1000).toDateString() === today && lastLog.type === 'in') { setStatus('Checked In'); } else { setStatus(null); }
-                    }, (err) => { if(err.code === 'permission-denied' && onError) onError(); });
-                    return () => unsub();
-                }
-            }, [user]);
-
-            const handlePunch = async (type) => {
-                setLoading(true);
-                if (!navigator.geolocation) { showToast(t.gpsRequired, "error"); setLoading(false); return; }
-                const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                    const loc = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
-                    if (window.firebaseLoaded) {
-                        try { await window.addDoc(window.collection(window.db, "attendance"), { userId: user.uid, userName: user.name || user.email, type: type, location: loc, timestamp: window.serverTimestamp(), department: user.department || 'General' }); showToast(`Success: Checked ${type === 'in' ? 'In' : 'Out'}`, "success"); } catch(err) { if(err.code === 'permission-denied' && onError) onError(); }
-                    }
-                    setLoading(false);
-                }, (err) => { console.error("GPS Error:", err); showToast(t.gpsError, "error"); setLoading(false); }, options);
-            };
-
-            return (
-                <div className="space-y-6 max-w-4xl mx-auto animate-slide-up">
-                    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-                        <div className="p-8 md:p-12 text-center bg-slate-50 border-b border-slate-100">
-                            <div className="mb-2 text-slate-500 font-medium uppercase tracking-widest text-xs">Current Time</div>
-                            <div className="text-5xl md:text-7xl font-bold text-slate-800 font-mono tracking-tighter mb-8">{currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                            <div className="flex justify-center">
-                                {!status ? <button onClick={() => handlePunch('in')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-emerald-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-200 hover:shadow-2xl hover:bg-emerald-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"><span className="relative z-10 flex items-center gap-3"><Icon name="log-in" /> {loading ? t.loading : t.checkIn}</span></button> : <button onClick={() => handlePunch('out')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-red-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-200 hover:shadow-2xl hover:bg-red-600 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"><span className="relative z-10 flex items-center gap-3"><Icon name="log-out" /> {loading ? t.loading : t.checkOut}</span></button>}
-                            </div>
-                            {status && <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-bold animate-pulse-slow"><span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Currently Working</div>}
+                    {isManager && (pendingRequests > 0 || pendingUsers > 0) && (
+                        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6"><h3 className="font-bold text-orange-800 mb-4 flex items-center gap-2"><Icon name="bell" size={20}/> {t.pendingActions}</h3><div className="flex gap-4">{pendingRequests > 0 && <button onClick={() => setView('requests')} className="bg-white text-orange-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-orange-200">{pendingRequests} {t.requests}</button>}{pendingUsers > 0 && <button onClick={() => setView('employees')} className="bg-white text-orange-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-orange-200">{pendingUsers} {t.joinRequests}</button>}</div></div>
+                    )}
+                    <div>
+                        <h3 className="font-bold text-lg mb-4 text-slate-700">{t.quickActions}</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button onClick={() => setView('attendance')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-primary-200 hover:shadow-md transition-all text-center group"><div className="w-12 h-12 mx-auto bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Icon name="clock" size={24}/></div><span className="font-semibold text-slate-700 text-sm">{t.attendance}</span></button>
+                            <button onClick={() => setView('requests')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-primary-200 hover:shadow-md transition-all text-center group"><div className="w-12 h-12 mx-auto bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Icon name="file-plus" size={24}/></div><span className="font-semibold text-slate-700 text-sm">{t.newRequest}</span></button>
+                            <button onClick={() => setView('chat')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-primary-200 hover:shadow-md transition-all text-center group"><div className="w-12 h-12 mx-auto bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Icon name="message-square" size={24}/></div><span className="font-semibold text-slate-700 text-sm">{t.chat}</span></button>
+                            <button onClick={() => setView('meetings')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-100 hover:border-primary-200 hover:shadow-md transition-all text-center group"><div className="w-12 h-12 mx-auto bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Icon name="video" size={24}/></div><span className="font-semibold text-slate-700 text-sm">{t.meetings}</span></button>
                         </div>
                     </div>
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500 font-semibold border-b"><tr><th className="p-4">{user.role === 'HR' ? t.fullName : 'Date'}</th><th className="p-4">Type</th><th className="p-4">Time</th><th className="p-4 hidden md:table-cell">Location</th></tr></thead><tbody className="divide-y divide-slate-100">{logs.map(log => (<tr key={log.id} className="hover:bg-slate-50 transition-colors"><td className="p-4 font-medium text-slate-700">{user.role === 'HR' ? (<div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold">{log.userName?.charAt(0)}</div>{log.userName}</div>) : new Date(log.timestamp?.seconds * 1000).toLocaleDateString()}</td><td className="p-4"><span className={`px-2.5 py-1 rounded-full text-xs font-bold ${log.type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{log.type?.toUpperCase()}</span></td><td className="p-4 text-slate-600 font-mono">{log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td><td className="p-4 text-slate-400 text-xs hidden md:table-cell flex items-center gap-1"><Icon name="map-pin" size={12}/> {log.location}</td></tr>))}</tbody></table></div>
                 </div>
             );
         };
 
-        // --- 5. Requests ---
-        const Requests = ({ t, user, onError }) => {
-            const [requests, setRequests] = useState([]);
-            const [tab, setTab] = useState('my');
-            const [showForm, setShowForm] = useState(false);
-            const [newReq, setNewReq] = useState({ type: 'Leave', reason: '' });
-            const showToast = useToast();
-
-            useEffect(() => {
-                if (window.firebaseLoaded && window.db && user) {
-                    let q = (user.role === 'HR' || user.role === 'Manager') ? window.collection(window.db, "requests") : window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
-                    const unsub = window.onSnapshot(q, (snap) => {
-                        let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                        setRequests(data);
-                    }, (err) => { if (err.code === 'permission-denied' && onError) onError(); });
-                    return () => unsub();
-                }
-            }, [user]);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                if (window.firebaseLoaded) {
-                    try { await window.addDoc(window.collection(window.db, "requests"), { userId: user.uid, userName: user.name || user.email, type: newReq.type, reason: newReq.reason, status: 'Pending', timestamp: window.serverTimestamp() }); showToast(t.reqSuccess, "success"); setShowForm(false); setNewReq({ type: 'Leave', reason: '' }); } catch (e) { console.error(e); showToast("Error submitting request", "error"); }
-                }
-            };
-
-            const updateStatus = async (id, status) => {
-                if (window.firebaseLoaded) { try { await window.updateDoc(window.doc(window.db, "requests", id), { status: status }); showToast(`Request ${status}`, status === 'Approved' ? 'success' : 'info'); } catch (e) { console.error(e); } }
-            };
-
-            const canManage = user.role === 'HR' || user.role === 'Manager';
-            const visibleRequests = tab === 'my' ? requests.filter(r => r.userId === user.uid) : requests;
-            const safeT = (key) => t[(key || '').toLowerCase()] || key;
-
-            return (
-                <div className="space-y-6 animate-slide-up">
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2><button onClick={() => setShowForm(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"><Icon name="plus" size={18} /> {t.newRequest}</button></div>
-                    <div className="flex p-1 bg-slate-200/50 rounded-xl w-fit border border-slate-200"><button onClick={() => setTab('my')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'my' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t.myRequests}</button>{canManage && (<button onClick={() => setTab('manage')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'manage' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t.manageRequests}</button>)}</div>
-                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 animate-slide-up max-w-lg mx-auto"><h3 className="font-bold text-xl mb-6 text-slate-800">{t.newRequest}</h3><form onSubmit={handleSubmit} className="space-y-4"><div><label className="block text-sm font-bold text-slate-700 mb-1">{t.type}</label><select className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={newReq.type} onChange={e => setNewReq({...newReq, type: e.target.value})}><option value="Leave">{t.leave}</option><option value="Loan">{t.loan}</option><option value="Overtime">{t.overtime}</option></select></div><div><label className="block text-sm font-bold text-slate-700 mb-1">{t.reason}</label><textarea required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" rows="3" value={newReq.reason} onChange={e => setNewReq({...newReq, reason: e.target.value})}></textarea></div><div className="flex justify-end gap-2 mt-4"><button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl font-medium transition-colors">{t.cancel}</button><button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-md">{t.submit}</button></div></form></div>)}
-                    <div className="grid gap-4">{visibleRequests.map(req => (<div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow"><div className="flex items-start gap-4"><div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${(req.type || '').toLowerCase() === 'leave' ? 'bg-orange-100 text-orange-600' : (req.type || '').toLowerCase() === 'loan' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}><Icon name={(req.type || '').toLowerCase() === 'leave' ? 'calendar-off' : (req.type || '').toLowerCase() === 'loan' ? 'banknote' : 'clock'} size={24} /></div><div><div className="flex items-center gap-3 mb-1"><h4 className="font-bold text-slate-800">{safeT(req.type)}</h4><span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${req.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : req.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{safeT(req.status)}</span></div><p className="text-slate-600 text-sm mb-1">{req.reason}</p><div className="flex items-center gap-2 text-xs text-slate-400"><Icon name="user" size={12} /> {req.userName} <span>•</span> {req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleDateString() : ''}</div></div></div>{canManage && tab === 'manage' && req.status === 'Pending' && (<div className="flex gap-2 self-end md:self-center"><button onClick={() => updateStatus(req.id, 'Approved')} className="flex items-center gap-1 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 font-bold transition-colors"><Icon name="check" size={16} /> {t.approve}</button><button onClick={() => updateStatus(req.id, 'Rejected')} className="flex items-center gap-1 px-4 py-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 font-bold transition-colors"><Icon name="x" size={16} /> {t.reject}</button></div>)}</div>))}{visibleRequests.length === 0 && (<div className="text-center py-12 bg-white rounded-2xl border border-slate-100 border-dashed"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300"><Icon name="inbox" size={32} /></div><p className="text-slate-400 font-medium">No requests found</p></div>)}</div>
-                </div>
-            );
-        };
-
-        // --- 6. Reports ---
-        const Reports = ({ t, lang, user, onError }) => {
-            const [activeReport, setActiveReport] = useState('employee');
-            const [selectedDept, setSelectedDept] = useState('All');
-            const [employees, setEmployees] = useState([]);
+        const EmployeeProfile = ({ t, employee, onBack, isHR }) => {
             const [logs, setLogs] = useState([]);
+            const [custodyList, setCustodyList] = useState([]);
+            const [deductionsList, setDeductionsList] = useState([]);
+            const [activeTab, setActiveTab] = useState('attendance');
+            const [newItem, setNewItem] = useState({ name: '', date: new Date().toISOString().split('T')[0] });
+            const [newDeduction, setNewDeduction] = useState({ amount: '', reason: '', date: new Date().toISOString().split('T')[0] });
+
+            const totalDeductions = deductionsList.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+            const calculateLateness = (logTime) => {
+                if (!employee.shiftStart) return 0;
+                const [sH, sM] = employee.shiftStart.split(':').map(Number);
+                const shiftDate = new Date(); shiftDate.setHours(sH, sM, 0, 0);
+                const logDate = new Date(logTime.seconds * 1000);
+                const compareDate = new Date(); compareDate.setHours(logDate.getHours(), logDate.getMinutes(), 0, 0);
+                const diff = Math.floor((compareDate - shiftDate) / 60000);
+                return diff > 5 ? diff : 0;
+            };
+            const totalLateness = logs.filter(l => l.type === 'in').reduce((acc, curr) => acc + calculateLateness(curr.timestamp), 0);
+            const hourlyRate = (Number(employee.salary) || 0) / 240;
+            const lateCost = Math.round((totalLateness / 60) * hourlyRate);
+            const netSalary = (Number(employee.salary) || 0) - totalDeductions - lateCost;
 
             useEffect(() => {
-                if (window.firebaseLoaded && window.db) {
-                    const unsubUsers = window.onSnapshot(window.collection(window.db, "users"), (snap) => setEmployees(snap.docs.map(d => ({id:d.id, ...d.data()}))), (e) => onError && onError());
-                    const unsubLogs = window.onSnapshot(window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc")), (snap) => setLogs(snap.docs.map(d => ({id:d.id, ...d.data()}))), (e) => onError && onError());
-                    return () => { unsubUsers(); unsubLogs(); };
+                if(window.firebaseLoaded) {
+                    // FIX: Remove orderBy from composite query to avoid index error. Sort client-side.
+                    const qL = window.query(window.collection(window.db, "attendance"), window.where("userId", "==", employee.uid));
+                    window.onSnapshot(qL, s => {
+                        const data = s.docs.map(d => ({id:d.id, ...d.data()}));
+                        data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                        setLogs(data);
+                    });
+                    
+                    const qC = window.query(window.collection(window.db, "custody"), window.where("userId", "==", employee.uid));
+                    window.onSnapshot(qC, s => setCustodyList(s.docs.map(d => ({id:d.id, ...d.data()}))));
+                    const qD = window.query(window.collection(window.db, "deductions"), window.where("userId", "==", employee.uid));
+                    window.onSnapshot(qD, s => setDeductionsList(s.docs.map(d => ({id:d.id, ...d.data()}))));
                 }
-            }, []);
+            }, [employee.uid]);
 
-            const departments = ['All', ...new Set(employees.map(e => e.department).filter(Boolean))];
-            const filteredEmployees = selectedDept === 'All' ? employees : employees.filter(e => e.department === selectedDept);
-            const filteredLogs = selectedDept === 'All' ? logs : logs.filter(l => { const emp = employees.find(e => e.uid === l.userId); return emp && emp.department === selectedDept; });
+            const addItem = async (coll, data, setter, reset) => { if(!window.firebaseLoaded) return; await window.addDoc(window.collection(window.db, coll), { userId: employee.uid, ...data }); setter(reset); };
 
             return (
-                <div className="space-y-6 print-container animate-slide-up">
-                    <div className="flex justify-between items-center no-print"><h2 className="text-2xl font-bold text-slate-800">{t.reports}</h2><button onClick={() => window.print()} className="bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-slate-700 shadow-lg transition-all print-allow"><Icon name="printer" size={18} /> {t.printReport}</button></div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-6 no-print"><div className="min-w-[200px]"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.reportType}</label><select className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={activeReport} onChange={e => setActiveReport(e.target.value)}><option value="employee">{t.employeeReport}</option><option value="attendance">{t.attendanceReport}</option></select></div><div className="min-w-[200px]"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.filterByDept}</label><select className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>{departments.map(d => <option key={d} value={d}>{d === 'All' ? t.allDepts : d}</option>)}</select></div></div>
-                    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden card-shadow">
-                        <div className="p-8 border-b border-slate-100 bg-slate-50/50"><div className="flex justify-between items-end mb-4"><div><h1 className="text-2xl font-bold text-slate-900">HR Master Report</h1><p className="text-slate-500 text-sm">{activeReport === 'employee' ? t.employeeReport : t.attendanceReport}</p></div><div className="text-right"><p className="text-xs text-slate-400 uppercase tracking-wide">{t.generatedOn}</p><p className="font-mono text-sm">{new Date().toLocaleString()}</p></div></div>{activeReport === 'employee' && (<div className="flex gap-8 mt-6"><div><p className="text-xs text-slate-400 uppercase">Count</p><p className="text-xl font-bold text-slate-800">{filteredEmployees.length}</p></div><div><p className="text-xs text-slate-400 uppercase">Payroll</p><p className="text-xl font-bold text-indigo-600">${filteredEmployees.reduce((a, c) => a + Number(c.salary||0), 0).toLocaleString()}</p></div></div>)}</div>
-                        <table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500 font-semibold border-b"><tr>{activeReport === 'employee' ? (<React.Fragment><th className="p-4">{t.fullName}</th><th className="p-4">{t.email}</th><th className="p-4">{t.department}</th><th className="p-4">{t.role}</th><th className="p-4 text-right">{t.salary}</th></React.Fragment>) : (<React.Fragment><th className="p-4">{t.fullName}</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Type</th><th className="p-4">Location</th></React.Fragment>)}</tr></thead><tbody className="divide-y divide-slate-100">{activeReport === 'employee' ? filteredEmployees.map(e => (<tr key={e.id}><td className="p-4 font-medium">{e.name}</td><td className="p-4 text-slate-500">{e.email}</td><td className="p-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{e.department}</span></td><td className="p-4 text-slate-600">{e.role}</td><td className="p-4 text-right font-mono">${Number(e.salary||0).toLocaleString()}</td></tr>)) : filteredLogs.map(l => (<tr key={l.id}><td className="p-4 font-medium">{l.userName}</td><td className="p-4 text-slate-500">{new Date(l.timestamp?.seconds*1000).toLocaleDateString()}</td><td className="p-4 font-mono">{new Date(l.timestamp?.seconds*1000).toLocaleTimeString()}</td><td className="p-4"><span className={`px-2 py-0.5 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}`}>{l.type?.toUpperCase()}</span></td><td className="p-4 text-xs text-slate-400">{l.location}</td></tr>))}</tbody></table>
+                <div className="space-y-6 pb-10 animate-fade-in">
+                    <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 no-print font-bold"><Icon name="arrow-left" size={20} /> Back</button>
+                    <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-8 relative overflow-hidden print-container">
+                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-primary-600 to-primary-800"></div>
+                        <div className="relative z-10 mt-4 md:mt-0"><div className="w-28 h-28 rounded-full border-4 border-white shadow-lg bg-slate-100 flex items-center justify-center text-3xl font-bold text-slate-400">{employee.name?.charAt(0)}</div></div>
+                        <div className="relative z-10 flex-1 pt-4 md:pt-10"><h1 className="text-3xl font-bold text-slate-900">{employee.name}</h1><p className="text-primary-600 font-bold uppercase text-xs tracking-wider mb-4">{employee.position || t.role}</p><div className="grid grid-cols-2 gap-4 text-sm text-slate-500"><div className="flex gap-2 items-center"><Icon name="mail" size={14}/> {employee.email}</div><div className="flex gap-2 items-center"><Icon name="briefcase" size={14}/> {employee.department}</div></div></div>
+                        <div className="relative z-10 pt-4 md:pt-10 min-w-[200px]"><div className="bg-slate-50 p-4 rounded-xl border border-slate-100"><p className="text-xs text-slate-400 uppercase font-bold">{t.netSalary}</p><p className="text-3xl font-bold text-emerald-600 font-mono">${netSalary.toLocaleString()}</p></div></div>
+                    </div>
+                    <div className="flex gap-1 border-b border-slate-200 no-print">{['attendance', 'financials', 'custody'].map(key => (<button key={key} onClick={() => setActiveTab(key)} className={`px-6 py-3 font-bold text-sm border-b-2 transition-all ${activeTab === key ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{key === 'financials' ? t.deductions : t[key]}</button>))}</div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 min-h-[400px]">
+                        {activeTab === 'attendance' && (<div><div className="flex gap-3 mb-6"><span className="px-3 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">{t.shiftStart}: {employee.shiftStart || "09:00"}</span><span className="px-3 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">{t.shiftEnd}: {employee.shiftEnd || "17:00"}</span><span className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-bold">{t.lateness}: {totalLateness}m</span></div><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">{t.date}</th><th className="p-3">Time</th><th className="p-3">{t.status}</th><th className="p-3">{t.lateness}</th><th className="p-3">Loc</th></tr></thead><tbody className="divide-y divide-slate-100">{logs.map(l => { const late = l.type === 'in' ? calculateLateness(l.timestamp) : 0; return (<tr key={l.id}><td className="p-3 font-medium">{new Date(l.timestamp.seconds*1000).toLocaleDateString()}</td><td className="p-3 font-mono">{new Date(l.timestamp.seconds*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td><td className="p-3"><span className={`px-2 py-0.5 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{l.type.toUpperCase()}</span></td><td className="p-3 text-red-600 font-bold">{late > 0 ? `+${late}m` : '-'}</td><td className="p-3 text-xs text-slate-400 max-w-[100px] truncate">{l.location}</td></tr>)})}</tbody></table></div>)}
+                        {activeTab === 'financials' && (<div className="grid md:grid-cols-2 gap-8"><div><h3 className="font-bold mb-4">{t.deductions}</h3><div className="space-y-2 mb-4">{deductionsList.map(d => (<div key={d.id} className="flex justify-between p-3 bg-red-50 rounded-lg border border-red-100 text-sm"><span>{d.reason} <span className="text-slate-400 text-xs ml-2">{d.date}</span></span><span className="font-bold text-red-600">-${d.amount}</span></div>))}<div className="flex justify-between p-3 bg-orange-50 rounded-lg border border-orange-100 text-sm"><span>Late Fees ({totalLateness}m)</span><span className="font-bold text-orange-600">-${lateCost}</span></div></div>{isHR && <form onSubmit={(e) => {e.preventDefault(); addItem('deductions', newDeduction, setNewDeduction, {amount:'',reason:'',date:''})}} className="flex gap-2 pt-4 border-t"><input className="flex-1 p-2 border rounded text-sm" placeholder={t.reason} value={newDeduction.reason} onChange={e=>setNewDeduction({...newDeduction,reason:e.target.value})} /><input className="w-20 p-2 border rounded text-sm" type="number" placeholder="$" value={newDeduction.amount} onChange={e=>setNewDeduction({...newDeduction,amount:e.target.value})} /><button className="px-3 bg-red-600 text-white rounded text-sm font-bold">{t.save}</button></form>}</div><div className="bg-slate-50 p-6 rounded-2xl h-fit border border-slate-200"><h3 className="font-bold mb-4 border-b pb-2">Payslip Preview</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>Base Salary</span><span className="font-mono">${Number(employee.salary).toLocaleString()}</span></div><div className="flex justify-between text-red-500"><span>Deductions</span><span className="font-mono">-${totalDeductions}</span></div><div className="flex justify-between text-orange-500"><span>Late Fees</span><span className="font-mono">-${lateCost}</span></div><div className="flex justify-between font-bold text-lg pt-2 border-t mt-2"><span>Net Pay</span><span className="font-mono text-emerald-600">${netSalary.toLocaleString()}</span></div></div></div></div>)}
+                        {activeTab === 'custody' && (<div><h3 className="font-bold mb-4">{t.custody}</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">{custodyList.map(c => (<div key={c.id} className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex justify-between items-center"><div><p className="font-bold text-slate-800">{c.name}</p><p className="text-xs text-blue-400">{c.date}</p></div><Icon name="box" className="text-blue-300" /></div>))}</div>{isHR && <form onSubmit={(e) => {e.preventDefault(); addItem('custody', newItem, setNewItem, {name:'',date:''})}} className="flex gap-2 max-w-md"><input className="flex-1 p-2 border rounded text-sm" placeholder={t.itemName} value={newItem.name} onChange={e=>setNewItem({...newItem,name:e.target.value})} /><input className="w-32 p-2 border rounded text-sm" type="date" value={newItem.date} onChange={e=>setNewItem({...newItem,date:e.target.value})} /><button className="px-4 bg-primary-600 text-white rounded text-sm font-bold">{t.save}</button></form>}</div>)}
                     </div>
                 </div>
             );
         };
 
-        // --- 7. Advanced Chat (Channels + DM + Search) ---
-        const Chat = ({ t, user, onError }) => {
+        const Employees = ({ t, user, onError }) => {
+            const [users, setUsers] = useState([]);
+            const [tab, setTab] = useState('active');
+            const [viewId, setViewId] = useState(null);
+            const [showForm, setShowForm] = useState(false);
+            const [formData, setFormData] = useState({});
+            const showToast = useToast();
+
+            useEffect(() => {
+                if(!window.firebaseLoaded) return;
+                const unsub = window.onSnapshot(window.collection(window.db, "users"), (s) => setUsers(s.docs.map(d => ({id:d.id, ...d.data()}))), onError);
+                return () => unsub();
+            }, []);
+
+            const handleAction = async (action, id, data = null) => {
+                try {
+                    if (action === 'delete') { if(confirm(t.confirmDelete)) { await window.deleteDoc(window.doc(window.db, "users", id)); showToast("Deleted", "success"); } }
+                    else if (action === 'approve') { await window.updateDoc(window.doc(window.db, "users", id), { status: 'active' }); showToast("Approved", "success"); }
+                    else if (action === 'create' || action === 'update') {
+                        const payload = { ...data, status: 'active', createdAt: window.serverTimestamp() };
+                        if (action === 'update') await window.updateDoc(window.doc(window.db, "users", id), data);
+                        else await window.addDoc(window.collection(window.db, "users"), payload);
+                        setShowForm(false); showToast("Saved", "success");
+                    }
+                } catch(e) { console.error(e); }
+            };
+
+            if (viewId) return <EmployeeProfile t={t} employee={users.find(u => u.id === viewId)} onBack={()=>setViewId(null)} isHR={true} />;
+            const pending = users.filter(u => u.status === 'pending');
+            const active = users.filter(u => u.status !== 'pending');
+            const list = tab === 'active' ? active : pending;
+
+            return (
+                <div className="space-y-6 animate-fade-in pb-10">
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.employees}</h2><button onClick={()=>{setFormData({}); setShowForm(true)}} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg hover:bg-primary-700 transition-colors"><Icon name="plus" size={18}/> {t.addEmployee}</button></div>
+                    <div className="flex gap-2 border-b border-slate-200"><button onClick={()=>setTab('active')} className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors ${tab==='active'?'border-primary-600 text-primary-700':'border-transparent text-slate-500'}`}>{t.activeEmployees} ({active.length})</button><button onClick={()=>setTab('pending')} className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${tab==='pending'?'border-primary-600 text-primary-700':'border-transparent text-slate-500'}`}>{t.joinRequests} {pending.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 rounded-full">{pending.length}</span>}</button></div>
+                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 mb-6 animate-fade-in"><h3 className="font-bold mb-4">{t.addEmployee}</h3><form onSubmit={(e)=>{e.preventDefault(); handleAction(formData.id?'update':'create', formData.id, formData)}} className="grid grid-cols-2 gap-4"><input className="p-3 border rounded-xl" placeholder={t.fullName} required onChange={e=>setFormData({...formData, name:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.email} required type="email" onChange={e=>setFormData({...formData, email:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.position} onChange={e=>setFormData({...formData, position:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.department} onChange={e=>setFormData({...formData, department:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.salary} type="number" onChange={e=>setFormData({...formData, salary:e.target.value})} /><select className="p-3 border rounded-xl" onChange={e=>setFormData({...formData, role:e.target.value})}><option value="Employee">Employee</option><option value="Manager">Manager</option><option value="HR">HR</option></select><div className="flex gap-2"><input type="time" className="flex-1 p-3 border rounded-xl" value={formData.shiftStart||"09:00"} onChange={e=>setFormData({...formData, shiftStart:e.target.value})} /><input type="time" className="flex-1 p-3 border rounded-xl" value={formData.shiftEnd||"17:00"} onChange={e=>setFormData({...formData, shiftEnd:e.target.value})} /></div><div className="col-span-2 flex justify-end gap-2 mt-2"><button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button><button className="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold">{t.save}</button></div></form></div>)}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{list.map(u => (<div key={u.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all group relative"><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-lg">{u.name?.charAt(0)}</div><div><h3 className="font-bold text-slate-800">{u.name}</h3><p className="text-xs text-primary-600 font-bold uppercase">{u.position || u.role}</p></div></div><div className="space-y-2 text-sm text-slate-500 mb-6"><div className="flex items-center gap-2"><Icon name="mail" size={14}/> {u.email}</div><div className="flex items-center gap-2"><Icon name="briefcase" size={14}/> {u.department}</div></div><div className="flex gap-2">{tab === 'active' ? (<><button onClick={()=>setViewId(u.id)} className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100">{t.viewProfile}</button><button onClick={()=>handleAction('delete', u.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Icon name="trash-2" size={16}/></button></>) : (<><button onClick={()=>handleAction('approve', u.id)} className="flex-1 py-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100">{t.approveUser}</button><button onClick={()=>handleAction('delete', u.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Icon name="x" size={16}/></button></>)}</div></div>))}</div>
+                </div>
+            );
+        };
+
+        const Requests = ({ t, user }) => {
+            const [list, setList] = useState([]);
+            const [showForm, setShowForm] = useState(false);
+            const [form, setForm] = useState({ type: 'Leave', reason: '' });
+            const showToast = useToast();
+
+            useEffect(() => {
+                if(!window.firebaseLoaded) return;
+                const q = ['HR','Manager'].includes(user.role) ? window.collection(window.db, "requests") : window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
+                const unsub = window.onSnapshot(q, s => setList(s.docs.map(d => ({id:d.id, ...d.data()}))));
+                return () => unsub();
+            }, [user]);
+
+            const submit = async (e) => {
+                e.preventDefault();
+                await window.addDoc(window.collection(window.db, "requests"), { userId: user.uid, userName: user.name, ...form, status: 'Pending', timestamp: window.serverTimestamp() });
+                setShowForm(false); showToast(t.reqSuccess, "success");
+            };
+
+            const statusUpdate = async (id, status) => { await window.updateDoc(window.doc(window.db, "requests", id), { status }); };
+
+            return (
+                <div className="space-y-6 animate-fade-in pb-10">
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2><button onClick={()=>setShowForm(true)} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg"><Icon name="plus" size={18}/> {t.newRequest}</button></div>
+                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl mb-6"><form onSubmit={submit} className="space-y-4"><select className="w-full p-3 border rounded-xl" onChange={e=>setForm({...form, type:e.target.value})}><option value="Leave">{t.leave}</option><option value="Permission">{t.permission}</option><option value="Loan">{t.loan}</option></select>{form.type === 'Permission' && <div className="flex gap-2"><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, from:e.target.value})} /><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, to:e.target.value})} /></div>}<textarea className="w-full p-3 border rounded-xl" placeholder={t.reason} required onChange={e=>setForm({...form, reason:e.target.value})} /><div className="flex justify-end gap-2"><button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button><button className="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold">{t.submit}</button></div></form></div>)}
+                    <div className="grid gap-4">{list.sort((a,b)=> (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0)).map(r => (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Icon name="user" size={12}/> {r.userName}</p></div>{['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}</div>))}</div>
+                </div>
+            );
+        };
+
+        const Attendance = ({ t, user }) => {
+            const [logs, setLogs] = useState([]);
+            const [status, setStatus] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const showToast = useToast();
+
+            useEffect(() => {
+                if(!window.firebaseLoaded) return;
+                const q = user.role === 'HR' ? window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc")) : window.query(window.collection(window.db, "attendance"), window.where("userId", "==", user.uid));
+                window.onSnapshot(q, s => {
+                    const data = s.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b)=> (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
+                    setLogs(data);
+                    if(data[0] && data[0].type === 'in' && new Date(data[0].timestamp.seconds*1000).toDateString() === new Date().toDateString()) setStatus('Checked In'); else setStatus(null);
+                });
+            }, [user]);
+
+            const punch = (type) => {
+                setLoading(true);
+                if(!navigator.geolocation) { showToast(t.gpsRequired, "error"); setLoading(false); return; }
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const loc = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+                    await window.addDoc(window.collection(window.db, "attendance"), { userId: user.uid, userName: user.name, type, location: loc, timestamp: window.serverTimestamp() });
+                    showToast("Success", "success"); setLoading(false);
+                }, () => { showToast(t.gpsRequired, "error"); setLoading(false); }, { enableHighAccuracy: true });
+            };
+
+            return (
+                <div className="space-y-6 pb-10 animate-fade-in">
+                    <div className="bg-white rounded-3xl p-10 shadow-sm border border-slate-200 text-center"><div className="text-6xl font-bold text-slate-800 font-mono tracking-tighter mb-8">{new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div className="flex justify-center">{!status ? <button onClick={()=>punch('in')} disabled={loading} className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-200 hover:shadow-2xl hover:bg-emerald-700 transition-all flex items-center gap-3 disabled:opacity-50"><Icon name="log-in" /> {loading ? "..." : t.checkIn}</button> : <button onClick={()=>punch('out')} disabled={loading} className="px-10 py-4 bg-red-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-200 hover:shadow-2xl hover:bg-red-700 transition-all flex items-center gap-3 disabled:opacity-50"><Icon name="log-out" /> {loading ? "..." : t.checkOut}</button>}</div></div>
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-4">{t.date}</th><th className="p-4">{t.type}</th><th className="p-4">Time</th><th className="p-4">Loc</th></tr></thead><tbody className="divide-y divide-slate-100">{logs.map(l => (<tr key={l.id}><td className="p-4 font-medium">{new Date(l.timestamp?.seconds*1000).toLocaleDateString()}</td><td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{l.type.toUpperCase()}</span></td><td className="p-4 font-mono">{new Date(l.timestamp?.seconds*1000).toLocaleTimeString()}</td><td className="p-4 text-xs text-slate-400">{l.location}</td></tr>))}</tbody></table></div>
+                </div>
+            );
+        };
+
+        const Chat = ({ t, user }) => {
             const [activeChannel, setActiveChannel] = useState('general');
             const [messages, setMessages] = useState([]);
             const [newMessage, setNewMessage] = useState("");
             const [usersList, setUsersList] = useState([]);
-            const [searchQuery, setSearchQuery] = useState("");
             const bottomRef = useRef(null);
 
             useEffect(() => {
-                if (window.firebaseLoaded && window.db) {
-                    const unsub = window.onSnapshot(window.collection(window.db, "users"), (snap) => {
-                        setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.uid !== user.uid));
-                    });
-                    return () => unsub();
-                }
-            }, [user.uid]);
+                if(!window.firebaseLoaded) return;
+                // FIX: Simple query to avoid indexing error
+                const unsub = window.onSnapshot(window.collection(window.db, "users"), s => setUsersList(s.docs.map(d => ({id:d.id, ...d.data()})).filter(u => u.uid !== user.uid)));
+                return () => unsub();
+            }, []);
 
             useEffect(() => {
-                if (window.firebaseLoaded && window.db) {
-                    const q = window.query(
-                        window.collection(window.db, "messages"), 
-                        window.where("channelId", "==", activeChannel),
-                        window.orderBy("timestamp", "asc")
-                    );
-                    const unsub = window.onSnapshot(q, (snap) => {
-                        setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-                    }, (err) => { if(err.code === 'permission-denied' && onError) onError(); });
-                    return () => unsub();
-                }
+                if(!window.firebaseLoaded) return;
+                // FIX: Remove orderBy to prevent composite index requirement error
+                const q = window.query(window.collection(window.db, "messages"), window.where("channelId", "==", activeChannel));
+                const unsub = window.onSnapshot(q, s => { 
+                    const data = s.docs.map(d => ({id:d.id, ...d.data()}));
+                    // Sort client-side
+                    data.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+                    setMessages(data); 
+                    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); 
+                });
+                return () => unsub();
             }, [activeChannel]);
 
-            const handleSend = async (e) => {
+            const send = async (e) => {
                 e.preventDefault();
-                if (!newMessage.trim()) return;
-                if (window.firebaseLoaded) {
-                    try {
-                        await window.addDoc(window.collection(window.db, "messages"), {
-                            text: newMessage,
-                            userId: user.uid,
-                            userName: user.name || user.email,
-                            channelId: activeChannel,
-                            timestamp: window.serverTimestamp()
-                        });
-                        setNewMessage("");
-                    } catch (err) { console.error(err); }
-                }
+                if(!newMessage.trim()) return;
+                await window.addDoc(window.collection(window.db, "messages"), { text: newMessage, userId: user.uid, userName: user.name, channelId: activeChannel, timestamp: window.serverTimestamp() });
+                setNewMessage("");
             };
 
             const getDmId = (uid1, uid2) => [uid1, uid2].sort().join('_');
-            const filteredUsers = usersList.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
             return (
                 <div className="flex h-[calc(100vh-140px)] bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-slide-up">
-                    <div className="w-80 bg-slate-50 border-r border-slate-200 flex flex-col">
-                        <div className="p-4 border-b border-slate-200">
-                            <h3 className="font-bold text-slate-700 mb-3">{t.channels}</h3>
-                            <button onClick={() => setActiveChannel('general')} className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 ${activeChannel === 'general' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}># {t.generalChannel}</button>
-                            <button onClick={() => setActiveChannel(`dept_${user.department || 'General'}`)} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeChannel.startsWith('dept_') ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}># {t.deptChannel} ({user.department})</button>
-                        </div>
-                        <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
-                            <h3 className="font-bold text-slate-700 mb-3">{t.directMessages}</h3>
-                            <div className="mb-3 relative">
-                                <input placeholder={t.searchStaff} className="w-full pl-8 pr-3 py-2 text-sm border rounded-lg bg-white focus:ring-2 focus:ring-indigo-200 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                                <Icon name="search" size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
-                            </div>
-                            {filteredUsers.map(u => (
-                                <button key={u.id} onClick={() => setActiveChannel(getDmId(user.uid, u.uid))} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-1 ${activeChannel === getDmId(user.uid, u.uid) ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}>
-                                    <div className="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-[10px] text-white">{u.name?.charAt(0)}</div>
-                                    <span className="truncate">{u.name}</span>
-                                </button>
-                            ))}
-                        </div>
+                    <div className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col">
+                        <div className="p-4 border-b border-slate-200"><h3 className="font-bold text-slate-700 mb-3">{t.channels}</h3><button onClick={() => setActiveChannel('general')} className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 ${activeChannel === 'general' ? 'bg-primary-100 text-primary-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}># {t.generalChannel}</button><button onClick={() => setActiveChannel(`dept_${user.department}`)} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeChannel.startsWith('dept_') ? 'bg-primary-100 text-primary-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}># {t.deptChannel}</button></div>
+                        <div className="p-4 flex-1 overflow-y-auto"><h3 className="font-bold text-slate-700 mb-3">{t.directMessages}</h3>{usersList.map(u => (<button key={u.id} onClick={() => setActiveChannel(getDmId(user.uid, u.uid))} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-1 ${activeChannel === getDmId(user.uid, u.uid) ? 'bg-primary-100 text-primary-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}><div className="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-[10px] text-white">{u.name?.charAt(0)}</div><span className="truncate">{u.name}</span></button>))}</div>
                     </div>
                     <div className="flex-1 flex flex-col bg-slate-100 relative">
-                        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
-                        <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 flex justify-between items-center">
-                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600"><Icon name={activeChannel.includes('_') ? 'user' : 'hash'} size={20}/></div><div><h3 className="font-bold text-slate-800">{activeChannel === 'general' ? t.generalChannel : activeChannel.startsWith('dept_') ? `${t.deptChannel} (${user.department})` : usersList.find(u => getDmId(user.uid, u.uid) === activeChannel)?.name || 'Chat'}</h3><p className="text-xs text-green-500 font-medium flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online</p></div></div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 z-10 custom-scrollbar">
-                            {messages.map((m, i) => {
-                                const isMe = m.userId === user.uid;
-                                return (
-                                    <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                        {!isMe && activeChannel.includes('general') && <span className="text-xs text-slate-400 ml-3 mb-1">{m.userName}</span>}
-                                        <div className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-sm relative ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-slate-800 rounded-bl-none'}`}><p className="leading-relaxed text-sm">{m.text}</p><span className={`text-[10px] block text-right mt-1 opacity-60 ${isMe ? 'text-indigo-100' : 'text-slate-400'}`}>{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span></div>
-                                    </div>
-                                )
-                            })}
-                            <div ref={bottomRef}></div>
-                        </div>
-                        <div className="p-4 bg-white border-t border-slate-200 z-10"><form onSubmit={handleSend} className="flex gap-2 items-center bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-100 transition-all"><input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder={t.typeMessage} className="flex-1 px-4 py-2 bg-transparent outline-none text-slate-800 placeholder:text-slate-400" /><button type="submit" className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50" disabled={!newMessage.trim()}><Icon name="send" size={18} /></button></form></div>
+                        <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 flex justify-between items-center"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600"><Icon name="hash" size={20}/></div><h3 className="font-bold text-slate-800">{activeChannel === 'general' ? t.generalChannel : 'Chat'}</h3></div></div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 z-10">{messages.map((m, i) => { const isMe = m.userId === user.uid; return (<div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}><div className={`max-w-[75%] px-4 py-2 rounded-xl shadow-sm ${isMe ? 'bg-primary-600 text-white rounded-br-none' : 'bg-white text-slate-800 rounded-bl-none'}`}><p className="text-sm">{m.text}</p></div></div>) })}<div ref={bottomRef}></div></div>
+                        <div className="p-4 bg-white border-t border-slate-200 z-10"><form onSubmit={send} className="flex gap-2"><input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type..." className="flex-1 p-3 border rounded-xl" /><button className="p-3 bg-primary-600 text-white rounded-xl"><Icon name="send" size={18}/></button></form></div>
                     </div>
                 </div>
             );
         };
 
-        // --- 8. Meetings ---
-        const Meetings = ({ t, user, onError }) => {
+        const Meetings = ({ t, user }) => {
             const [meetings, setMeetings] = useState([]);
             const [showForm, setShowForm] = useState(false);
             const [newMeeting, setNewMeeting] = useState({ title: '', type: 'online', date: '', time: '' });
             const showToast = useToast();
 
             useEffect(() => {
-                if (window.firebaseLoaded && window.db) {
-                    const q = window.query(window.collection(window.db, "meetings"), window.orderBy("timestamp", "desc"));
-                    const unsub = window.onSnapshot(q, (snap) => setMeetings(snap.docs.map(d => ({ id: d.id, ...d.data() }))), (e) => onError && onError());
-                    return () => unsub();
-                }
+                if(!window.firebaseLoaded) return;
+                const q = window.query(window.collection(window.db, "meetings"), window.orderBy("timestamp", "desc"));
+                window.onSnapshot(q, s => setMeetings(s.docs.map(d => ({id:d.id, ...d.data()}))));
             }, []);
 
-            const handleCreate = async (e) => {
+            const create = async (e) => {
                 e.preventDefault();
-                if (window.firebaseLoaded) {
-                    try {
-                        const link = newMeeting.type === 'online' ? `https://meet.jit.si/HR_${Date.now()}` : '';
-                        await window.addDoc(window.collection(window.db, "meetings"), { ...newMeeting, link, createdBy: user.name, timestamp: window.serverTimestamp() });
-                        setShowForm(false);
-                        setNewMeeting({ title: '', type: 'online', date: '', time: '' });
-                        showToast("Meeting Scheduled", "success");
-                    } catch (err) { console.error(err); }
-                }
+                const link = newMeeting.type === 'online' ? `https://meet.jit.si/HR_${Date.now()}` : '';
+                await window.addDoc(window.collection(window.db, "meetings"), { ...newMeeting, link, createdBy: user.name, timestamp: window.serverTimestamp() });
+                setShowForm(false); showToast("Meeting Scheduled", "success");
             };
-
-            const canCreate = user.role === 'HR' || user.role === 'Manager';
 
             return (
                 <div className="space-y-6 animate-slide-up">
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.meetings}</h2>{canCreate && <button onClick={() => setShowForm(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"><Icon name="plus" size={18} /> {t.scheduleMeeting}</button>}</div>
-                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 max-w-lg mx-auto"><h3 className="font-bold text-xl mb-6">{t.scheduleMeeting}</h3><form onSubmit={handleCreate} className="space-y-4"><input placeholder={t.meetingTitle} required className="w-full p-3 border rounded-xl bg-slate-50" value={newMeeting.title} onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} /><div className="grid grid-cols-2 gap-4"><select className="p-3 border rounded-xl bg-slate-50" value={newMeeting.type} onChange={e => setNewMeeting({...newMeeting, type: e.target.value})}><option value="online">{t.online}</option><option value="onsite">{t.onsite}</option></select><input type="date" required className="p-3 border rounded-xl bg-slate-50" value={newMeeting.date} onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} /><input type="time" required className="p-3 border rounded-xl bg-slate-50" value={newMeeting.time} onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} /></div><div className="flex justify-end gap-2 mt-4"><button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl">{t.cancel}</button><button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold">{t.create}</button></div></form></div>)}
-                    <div className="grid gap-4">{meetings.map(m => (<div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center hover:shadow-md transition-shadow"><div className="flex items-center gap-5"><div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${m.type === 'online' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}><Icon name={m.type === 'online' ? 'video' : 'users'} size={24} /></div><div><h3 className="font-bold text-lg text-slate-800">{m.title}</h3><div className="flex items-center gap-3 text-sm text-slate-500 mt-1"><span className="flex items-center gap-1"><Icon name="calendar" size={14}/> {m.date}</span><span className="flex items-center gap-1"><Icon name="clock" size={14}/> {m.time}</span></div><p className="text-xs text-indigo-500 font-bold mt-1 uppercase tracking-wide">By {m.createdBy}</p></div></div>{m.type === 'online' && m.link && (<a href={m.link} target="_blank" className="bg-indigo-50 text-indigo-600 px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2"><Icon name="link" size={16} /> {t.join}</a>)}</div>))}{meetings.length === 0 && <p className="text-center text-slate-400 py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">No scheduled meetings.</p>}</div>
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.meetings}</h2><button onClick={()=>setShowForm(true)} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm"><Icon name="plus" size={18}/> {t.scheduleMeeting}</button></div>
+                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl mb-6"><form onSubmit={create} className="space-y-4"><input className="w-full p-3 border rounded-xl" placeholder={t.meetingTitle} onChange={e=>setNewMeeting({...newMeeting, title:e.target.value})} /><div className="flex gap-2"><select className="flex-1 p-3 border rounded-xl" onChange={e=>setNewMeeting({...newMeeting, type:e.target.value})}><option value="online">Online</option><option value="onsite">Onsite</option></select><input type="date" className="flex-1 p-3 border rounded-xl" onChange={e=>setNewMeeting({...newMeeting, date:e.target.value})} /><input type="time" className="flex-1 p-3 border rounded-xl" onChange={e=>setNewMeeting({...newMeeting, time:e.target.value})} /></div><button className="w-full p-3 bg-primary-600 text-white rounded-xl font-bold">{t.create}</button></form></div>)}
+                    <div className="grid gap-4">{meetings.map(m => (<div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center"><Icon name="video" size={24}/></div><div><h3 className="font-bold text-lg">{m.title}</h3><p className="text-sm text-slate-500">{m.date} at {m.time}</p></div></div>{m.link && <a href={m.link} target="_blank" className="bg-primary-50 text-primary-600 px-4 py-2 rounded-lg font-bold text-sm">Join</a>}</div>))}</div>
                 </div>
             );
         };
 
-        // --- 9. Employees (Modified for Approval Workflow) ---
-        const Employees = ({ t, lang, user, onError }) => {
-            const [users, setUsers] = useState([]);
-            const [tab, setTab] = useState('active'); // 'active' or 'pending'
-            const [showForm, setShowForm] = useState(false);
-            const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 });
-            const [editingId, setEditingId] = useState(null);
-            const showToast = useToast();
+        const Reports = ({ t }) => <div className="p-10 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-300"><Icon name="bar-chart-2" size={48} className="mx-auto mb-4 opacity-50"/><h3 className="text-xl font-bold text-slate-600">Global Reports Module</h3><p>Use "Employees" section for detailed individual reports.</p></div>;
 
-            useEffect(() => {
-                if (window.firebaseLoaded && window.db) {
-                    const unsub = window.onSnapshot(window.collection(window.db, "users"), (snap) => setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }))), (e) => onError && onError());
-                    return () => unsub();
-                }
-            }, []);
-
-            const handleSaveUser = async (e) => {
-                e.preventDefault();
-                if (window.firebaseLoaded) {
-                    try {
-                        if (editingId) {
-                            await window.updateDoc(window.doc(window.db, "users", editingId), newUser);
-                            showToast("User updated successfully", "success");
-                        } else {
-                            await window.addDoc(window.collection(window.db, "users"), { ...newUser, status: 'active', createdAt: window.serverTimestamp(), dummyAuth: true });
-                            showToast("User profile created", "success");
-                        }
-                        setShowForm(false); setEditingId(null);
-                        setNewUser({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 });
-                    } catch (err) { console.error(err); showToast("Error saving user", "error"); }
-                }
-            };
-
-            const handleDelete = async (id) => {
-                if (confirm(t.confirmDelete)) {
-                    try {
-                        await window.deleteDoc(window.doc(window.db, "users", id));
-                        showToast("User removed successfully", "success");
-                    } catch (err) { console.error(err); showToast("Error removing user", "error"); }
-                }
-            };
-
-            const handleApprove = async (id) => {
-                try {
-                    await window.updateDoc(window.doc(window.db, "users", id), { status: 'active' });
-                    showToast("User Approved", "success");
-                } catch(e) { console.error(e); }
-            };
-
-            const pendingUsers = users.filter(u => u.status === 'pending');
-            const activeUsers = users.filter(u => u.status !== 'pending');
-            const visibleUsers = tab === 'active' ? activeUsers : pendingUsers;
-
-            return (
-                <div className="space-y-6 animate-slide-up">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-slate-800">{t.employees}</h2>
-                        <button onClick={() => { setEditingId(null); setNewUser({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 }); setShowForm(true); }} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg transition-all"><Icon name="user-plus" size={18} /> {t.addEmployee}</button>
-                    </div>
-
-                    <div className="flex gap-2 border-b mb-4">
-                        <button onClick={() => setTab('active')} className={`px-4 py-2 border-b-2 font-bold ${tab === 'active' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>{t.activeEmployees} ({activeUsers.length})</button>
-                        <button onClick={() => setTab('pending')} className={`px-4 py-2 border-b-2 font-bold flex items-center gap-2 ${tab === 'pending' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>
-                            {t.joinRequests} 
-                            {pendingUsers.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingUsers.length}</span>}
-                        </button>
-                    </div>
-
-                    {showForm && (
-                        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 mb-6">
-                            <h3 className="font-bold text-xl mb-6">{editingId ? "Edit User" : "New User"}</h3>
-                            <form onSubmit={handleSaveUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input placeholder={t.fullName} className="p-3 border rounded-xl bg-slate-50" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
-                                <input placeholder={t.email} className="p-3 border rounded-xl bg-slate-50" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
-                                <select className="p-3 border rounded-xl bg-slate-50" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                                    <option value="Employee">Employee</option><option value="Manager">Manager</option><option value="HR">HR</option>
-                                </select>
-                                <input placeholder={t.department} className="p-3 border rounded-xl bg-slate-50" value={newUser.department} onChange={e => setNewUser({...newUser, department: e.target.value})} />
-                                <input placeholder={t.salary} type="number" className="p-3 border rounded-xl bg-slate-50" value={newUser.salary} onChange={e => setNewUser({...newUser, salary: e.target.value})} />
-                                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                                    <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl">{t.cancel}</button>
-                                    <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold">{t.save}</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b">
-                                <tr>
-                                    <th className="p-4">{t.fullName}</th><th className="p-4">{t.role}</th><th className="p-4">{t.department}</th>
-                                    {tab === 'active' && <th className="p-4">{t.salary}</th>}
-                                    <th className="p-4 w-40 text-center">{t.actions}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {visibleUsers.map(u => (
-                                    <tr key={u.id} className="hover:bg-slate-50">
-                                        <td className="p-4 font-medium flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">{u.name?.charAt(0)}</div>
-                                            <div>{u.name}<div className="text-xs text-slate-400 font-normal">{u.email}</div></div>
-                                        </td>
-                                        <td className="p-4"><span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">{u.role}</span></td>
-                                        <td className="p-4 text-slate-600">{u.department}</td>
-                                        {tab === 'active' && <td className="p-4 font-mono text-slate-600">${Number(u.salary||0).toLocaleString()}</td>}
-                                        <td className="p-4 flex justify-center gap-2">
-                                            {tab === 'active' ? (
-                                                <>
-                                                    <button onClick={() => { setNewUser(u); setEditingId(u.id); setShowForm(true); }} className="p-2 hover:bg-slate-100 rounded-lg text-indigo-600"><Icon name="pencil" size={16} /></button>
-                                                    <button onClick={() => handleDelete(u.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-600"><Icon name="trash-2" size={16} /></button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button onClick={() => handleApprove(u.id)} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold hover:bg-green-200">{t.approveUser}</button>
-                                                    <button onClick={() => handleDelete(u.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200">{t.rejectUser}</button>
-                                                </>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {visibleUsers.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400">No records found.</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- MAIN APP ---
         const App = () => {
-            const [lang, setLang] = useState('en');
+            const [user, setUser] = useState(null);
             const [view, setView] = useState('dashboard');
+            const [lang, setLang] = useState('en');
             const [sidebarOpen, setSidebarOpen] = useState(false);
-            const [user, setUser] = useState(null); 
             const [loadingAuth, setLoadingAuth] = useState(true);
             const [permError, setPermError] = useState(false);
+            const [globalRequests, setGlobalRequests] = useState([]);
+            const [allUsers, setAllUsers] = useState([]);
+            
             const t = TRANSLATIONS[lang];
 
             useEffect(() => {
-                if (window.firebaseLoaded && window.auth) {
-                    const unsub = window.onAuthStateChanged(window.auth, async (authUser) => {
-                        if (authUser) {
-                            try {
-                                const docSnap = await window.getDoc(window.doc(window.db, "users", authUser.uid));
-                                if (docSnap.exists()) {
-                                    const userData = docSnap.data();
-                                    // Treat missing 'status' as 'active' for backward compatibility
-                                    const status = userData.status || 'active';
-                                    setUser({ ...authUser, ...userData, status });
-                                } else {
-                                    // Fallback for demo users or incomplete profiles
-                                    setUser({ ...authUser, role: 'Employee', name: authUser.email.split('@')[0], status: 'active' });
-                                }
-                            } catch (e) {
-                                console.error("Error fetching user profile", e);
-                                if(e.code === 'permission-denied') setPermError(true);
-                                setUser({ ...authUser, role: 'Employee' });
-                            }
-                        } else {
-                            setUser(null);
-                        }
-                        setLoadingAuth(false);
-                    });
-                    return () => unsub();
-                } else {
-                    setLoadingAuth(false);
-                }
+                if(!window.firebaseLoaded) { setLoadingAuth(false); return; }
+                const unsub = window.onAuthStateChanged(window.auth, (u) => {
+                    if (u) {
+                        window.onSnapshot(window.doc(window.db, "users", u.uid), (doc) => {
+                            if (doc.exists()) setUser({ ...u, ...doc.data() });
+                            else { window.signOut(window.auth); setUser(null); }
+                            setLoadingAuth(false);
+                        }, (e) => { if(e.code==='permission-denied') setPermError(true); setLoadingAuth(false); });
+                        window.onSnapshot(window.collection(window.db, "requests"), s => setGlobalRequests(s.docs.map(d=>d.data())));
+                        window.onSnapshot(window.collection(window.db, "users"), s => setAllUsers(s.docs.map(d=>d.data())));
+                    } else { setUser(null); setLoadingAuth(false); }
+                });
+                return () => unsub();
             }, []);
 
-            if (loadingAuth) return <div className="h-screen flex flex-col items-center justify-center bg-slate-50 gap-4"><Icon name="loader" size={40} className="text-indigo-600 animate-spin" /><p className="text-slate-500 font-medium">Initializing Workspace...</p></div>;
+            if (loadingAuth) return <div className="h-screen flex items-center justify-center text-slate-400 animate-pulse">Loading System...</div>;
+            if (!user) return <ToastProvider><div dir={lang==='ar'?'rtl':'ltr'} className={lang==='ar'?'font-arabic':''}><AuthScreen t={t} onLogin={setUser} onError={()=>setPermError(true)} /></div></ToastProvider>;
+            if (user.status === 'pending') return <PendingScreen t={t} onLogout={() => window.signOut(window.auth)} />;
 
-            if (!user) {
-                return (
-                    <ToastProvider>
-                        <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={lang === 'ar' ? 'font-arabic' : 'font-sans'}>
-                             <div className="absolute top-6 right-6 z-50">
-                                 <button onClick={() => setLang(l => l==='en'?'ar':'en')} className="px-4 py-2 bg-white/80 backdrop-blur border border-white/20 rounded-full shadow-sm text-sm font-bold text-slate-700 hover:bg-white transition-colors">{lang === 'en' ? '🇺🇸 English' : '🇸🇦 العربية'}</button>
-                            </div>
-                            <AuthScreen t={t} onLogin={setUser} lang={lang} onError={() => setPermError(true)} />
-                            {permError && <PermissionHelpModal onClose={() => setPermError(false)} lang={lang} />}
-                        </div>
-                    </ToastProvider>
-                );
-            }
-
-            // 🚫 CHECK PENDING STATUS 🚫
-            if (user.status === 'pending') {
-                return (
-                    <ToastProvider>
-                        <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={lang === 'ar' ? 'font-arabic' : 'font-sans'}>
-                            <PendingScreen t={t} onLogout={() => window.signOut(window.auth)} />
-                        </div>
-                    </ToastProvider>
-                );
+            const menu = [
+                { id: 'dashboard', icon: 'layout-grid', label: t.dashboard },
+                { id: 'attendance', icon: 'clock', label: t.attendance },
+                { id: 'requests', icon: 'file-text', label: t.requests },
+                { id: 'chat', icon: 'message-circle', label: t.chat },
+                { id: 'meetings', icon: 'video', label: t.meetings },
+            ];
+            if(['HR','Manager'].includes(user.role)) {
+                menu.push({ id: 'employees', icon: 'users', label: t.employees });
+                menu.push({ id: 'reports', icon: 'bar-chart-2', label: t.reports });
             }
 
             return (
                 <ToastProvider>
-                    <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={`flex h-screen bg-slate-50 ${lang === 'ar' ? 'font-arabic' : 'font-sans'}`}>
-                        {permError && <PermissionHelpModal onClose={() => setPermError(false)} lang={lang} />}
-                        <Sidebar view={view} setView={setView} lang={lang} t={t} isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} user={user} />
-                        <div className="flex-1 flex flex-col overflow-hidden relative">
-                            <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 z-20 no-print sticky top-0">
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden text-slate-500 hover:text-slate-800 transition-colors"><Icon name="menu" /></button>
-                                    <h2 className="text-xl font-bold text-slate-800 hidden md:block tracking-tight">{t[view] || t.title}</h2>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full text-xs font-bold text-slate-500">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> System Online
-                                    </div>
-                                    <button onClick={() => setLang(l => l==='en'?'ar':'en')} className="px-4 py-2 border border-slate-200 rounded-full text-sm font-bold hover:bg-slate-50 transition-colors">{lang === 'en' ? 'AR' : 'EN'}</button>
-                                </div>
-                            </header>
-                            <main className="flex-1 overflow-auto p-4 md:p-8 relative scroll-smooth">
-                                {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} />}
-                                {view === 'attendance' && <Attendance t={t} user={user} onError={() => setPermError(true)} />}
-                                {view === 'employees' && (['HR', 'Manager'].includes(user.role) ? <Employees t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="lock" size={48} className="text-slate-300" /><p className="font-medium">{t.accessDenied}</p></div>)}
-                                {view === 'reports' && (['HR', 'Manager'].includes(user.role) ? <Reports t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="lock" size={48} className="text-slate-300" /><p className="font-medium">{t.accessDenied}</p></div>)}
-                                {view === 'requests' && <Requests t={t} user={user} onError={() => setPermError(true)} />}
-                                {view === 'chat' && <Chat t={t} user={user} onError={() => setPermError(true)} />}
-                                {view === 'meetings' && <Meetings t={t} user={user} onError={() => setPermError(true)} />}
-                                {view === 'payroll' && <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="wallet" size={64} className="text-slate-200" /><h3 className="text-xl font-bold text-slate-600">Payroll Module Coming Soon</h3><p>We are currently integrating with Stripe & PayPal.</p></div>}
+                    {permError && <PermissionHelpModal onClose={()=>setPermError(false)} lang={lang} />}
+                    <div dir={lang==='ar'?'rtl':'ltr'} className={`flex h-full ${lang==='ar'?'font-arabic':''}`}>
+                        <div className={`fixed md:static inset-y-0 z-30 w-72 bg-slate-900 text-white transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : (lang==='ar'?'translate-x-full':'-translate-x-full')} md:translate-x-0 flex flex-col shadow-2xl`}>
+                            <div className="p-8 flex items-center justify-between"><h1 className="text-xl font-bold flex gap-3 items-center"><span className="bg-primary-600 p-1.5 rounded-lg"><Icon name="hexagon" className="text-white"/></span> {t.appName}</h1><button onClick={()=>setSidebarOpen(false)} className="md:hidden text-slate-400"><Icon name="x"/></button></div>
+                            <div className="px-6 mb-6"><div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center font-bold text-sm">{user.name?.charAt(0)}</div><div className="overflow-hidden"><p className="font-bold text-sm truncate">{user.name}</p><p className="text-[10px] text-slate-400 uppercase tracking-wider">{t.roles[user.role.toLowerCase()]}</p></div></div></div>
+                            <nav className="flex-1 px-4 space-y-1 overflow-y-auto">{menu.map(m => (<button key={m.id} onClick={()=>{setView(m.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all group ${view===m.id ? 'bg-primary-600 text-white shadow-lg font-medium' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Icon name={m.icon} size={20} className={view===m.id?'text-white':'text-slate-500 group-hover:text-white'} /><span>{m.label}</span></button>))}</nav>
+                            <div className="p-4"><button onClick={()=>window.signOut(window.auth)} className="w-full py-3 bg-slate-800 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-900/20 transition-all flex items-center justify-center gap-2 font-medium text-sm"><Icon name="log-out" size={16}/> Logout</button></div>
+                        </div>
+                        <div className="flex-1 flex flex-col overflow-hidden relative bg-slate-50/50">
+                            <header className="h-20 bg-white/80 backdrop-blur border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20"><div className="flex items-center gap-4"><button onClick={()=>setSidebarOpen(true)} className="md:hidden text-slate-500"><Icon name="menu"/></button><h2 className="text-xl font-bold text-slate-800">{menu.find(m=>m.id===view)?.label || t.dashboard}</h2></div><button onClick={()=>setLang(l=>l==='en'?'ar':'en')} className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold hover:bg-slate-50 transition-colors uppercase">{lang}</button></header>
+                            <main className="flex-1 overflow-auto p-6 md:p-10">
+                                {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} requests={globalRequests} users={allUsers} />}
+                                {view === 'attendance' && <Attendance t={t} user={user} />}
+                                {view === 'employees' && <Employees t={t} user={user} />}
+                                {view === 'requests' && <Requests t={t} user={user} />}
+                                {view === 'chat' && <Chat t={t} user={user} />}
+                                {view === 'meetings' && <Meetings t={t} user={user} />}
+                                {view === 'reports' && <Reports t={t} />}
                             </main>
                         </div>
                     </div>
