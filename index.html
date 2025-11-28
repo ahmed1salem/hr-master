@@ -22,7 +22,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
         // --- ✅ LIVE FIREBASE CONFIGURATION ✅ ---
         const firebaseConfig = {
@@ -65,6 +65,7 @@
         window.getDoc = getDoc;
         window.addDoc = addDoc;
         window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
         window.query = query;
         window.where = where;
         window.onSnapshot = onSnapshot;
@@ -140,8 +141,7 @@
                 cancel: "Cancel",
                 submit: "Submit Request",
                 demoMode: "Demo Mode",
-                gpsRequired: "High-accuracy GPS location is required.",
-                gpsError: "Could not retrieve location. Please enable GPS.",
+                gpsRequired: "GPS location is required.",
                 accessDenied: "Restricted Area: HR/Admin Access Only",
                 addEmployee: "New Employee",
                 save: "Save Changes",
@@ -151,6 +151,8 @@
                 haveAccount: "Already have an account? Sign In.",
                 roles: { hr: "HR Manager", manager: "Manager", employee: "Employee" },
                 edit: "Edit",
+                delete: "Delete",
+                confirmDelete: "Are you sure you want to delete this user?",
                 actions: "Actions",
                 printReport: "Export to PDF",
                 reportType: "Report Type",
@@ -183,7 +185,18 @@
                 quickActions: "Quick Actions",
                 recentActivity: "Recent Activity",
                 attendanceOverview: "Attendance Overview",
-                loading: "Loading..."
+                loading: "Loading...",
+                channels: "Channels",
+                directMessages: "Direct Messages",
+                searchStaff: "Search staff...",
+                generalChannel: "General",
+                deptChannel: "My Department",
+                accountPending: "Account Pending Approval",
+                pendingMessage: "Your account has been created successfully and is currently pending approval by the HR department. Please check back later.",
+                joinRequests: "Join Requests",
+                activeEmployees: "Active Employees",
+                approveUser: "Approve",
+                rejectUser: "Reject"
             },
             ar: {
                 title: "الموارد البشرية",
@@ -214,8 +227,7 @@
                 cancel: "إلغاء",
                 submit: "إرسال الطلب",
                 demoMode: "وضع تجريبي",
-                gpsRequired: "مطلوب تفعيل GPS بدقة عالية لتسجيل الحضور.",
-                gpsError: "تعذر تحديد الموقع. يرجى تفعيل الـ GPS والتأكد من الصلاحيات.",
+                gpsRequired: "مطلوب تفعيل الموقع الجغرافي (GPS).",
                 accessDenied: "منطقة محظورة: خاصة بالموارد البشرية",
                 addEmployee: "موظف جديد",
                 save: "حفظ البيانات",
@@ -225,6 +237,8 @@
                 haveAccount: "لديك حساب؟ سجل دخولك.",
                 roles: { hr: "مدير موارد بشرية", manager: "مدير قسم", employee: "موظف" },
                 edit: "تعديل",
+                delete: "حذف",
+                confirmDelete: "هل أنت متأكد من حذف هذا الموظف؟",
                 actions: "إجراءات",
                 printReport: "تصدير PDF",
                 reportType: "نوع التقرير",
@@ -257,56 +271,54 @@
                 quickActions: "وصول سريع",
                 recentActivity: "آخر الأنشطة",
                 attendanceOverview: "نظرة عامة",
-                loading: "جاري التحميل..."
+                loading: "جاري التحميل...",
+                channels: "القنوات",
+                directMessages: "الرسائل المباشرة",
+                searchStaff: "بحث عن موظف...",
+                generalChannel: "القناة العامة",
+                deptChannel: "قسمي",
+                accountPending: "الحساب قيد المراجعة",
+                pendingMessage: "تم إنشاء حسابك بنجاح وهو الآن قيد المراجعة من قبل قسم الموارد البشرية. يرجى المحاولة لاحقاً.",
+                joinRequests: "طلبات الانضمام",
+                activeEmployees: "الموظفين الحاليين",
+                approveUser: "قبول العضوية",
+                rejectUser: "رفض"
             }
         };
 
         // --- FIXED ICON COMPONENT ---
         const Icon = ({ name, size = 20, className }) => {
             const ref = useRef(null);
-            
             useEffect(() => {
                 if (window.lucide && ref.current) {
                     ref.current.innerHTML = '';
                     const i = document.createElement('i');
                     i.setAttribute('data-lucide', name);
                     ref.current.appendChild(i);
-                    window.lucide.createIcons({
-                        root: ref.current,
-                        nameAttr: 'data-lucide',
-                        attrs: { width: size, height: size, class: className }
-                    });
+                    window.lucide.createIcons({ root: ref.current, nameAttr: 'data-lucide', attrs: { width: size, height: size, class: className } });
                 }
             }, [name, size, className]);
-
             return <span ref={ref} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} />;
         };
 
         // --- 🍞 TOAST NOTIFICATION SYSTEM ---
         const ToastContext = React.createContext();
-        
         const ToastProvider = ({ children }) => {
             const [toasts, setToasts] = useState([]);
-
             const addToast = (msg, type = 'info') => {
                 const id = Date.now();
                 setToasts(prev => [...prev, { id, msg, type }]);
                 setTimeout(() => removeToast(id), 4000);
             };
-
             const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
-
             return (
                 <ToastContext.Provider value={addToast}>
                     {children}
                     <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
                         {toasts.map(t => (
-                            <div key={t.id} className={`pointer-events-auto min-w-[300px] p-4 rounded-xl shadow-lg border-l-4 transform transition-all duration-300 animate-slide-up flex items-center justify-between bg-white ${
-                                t.type === 'success' ? 'border-green-500' : t.type === 'error' ? 'border-red-500' : 'border-blue-500'
-                            }`}>
+                            <div key={t.id} className={`pointer-events-auto min-w-[300px] p-4 rounded-xl shadow-lg border-l-4 transform transition-all duration-300 animate-slide-up flex items-center justify-between bg-white ${t.type === 'success' ? 'border-green-500' : t.type === 'error' ? 'border-red-500' : 'border-blue-500'}`}>
                                 <div className="flex items-center gap-3">
-                                    <Icon name={t.type === 'success' ? 'check-circle' : t.type === 'error' ? 'alert-circle' : 'info'} 
-                                          className={t.type === 'success' ? 'text-green-500' : t.type === 'error' ? 'text-red-500' : 'text-blue-500'} />
+                                    <Icon name={t.type === 'success' ? 'check-circle' : t.type === 'error' ? 'alert-circle' : 'info'} className={t.type === 'success' ? 'text-green-500' : t.type === 'error' ? 'text-red-500' : 'text-blue-500'} />
                                     <p className="text-sm font-medium text-slate-800">{t.msg}</p>
                                 </div>
                                 <button onClick={() => removeToast(t.id)} className="text-slate-400 hover:text-slate-600"><Icon name="x" size={14} /></button>
@@ -325,36 +337,32 @@
                     <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-700"><Icon name="x" /></button>
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600"><Icon name="shield-alert" size={24} /></div>
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-900">Database Permissions Required</h3>
-                            <p className="text-sm text-slate-500">Firebase Firestore Security Rules</p>
-                        </div>
+                        <div><h3 className="text-xl font-bold text-slate-900">Database Permissions Required</h3><p className="text-sm text-slate-500">Firebase Firestore Security Rules</p></div>
                     </div>
-                    <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                        {lang === 'ar' 
-                            ? "قواعد الأمان الحالية تمنع الوصول. يرجى نسخ الكود أدناه ولصقه في Firebase Console > Firestore Database > Rules."
-                            : "Your security rules are blocking the app. Go to Firebase Console > Firestore Database > Rules and paste this configuration:"}
-                    </p>
-                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs overflow-x-auto mb-6 border border-slate-700">
-                        <pre>{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}`}</pre>
+                    <p className="text-sm text-slate-600 mb-4 leading-relaxed">{lang === 'ar' ? "قواعد الأمان الحالية تمنع الوصول. يرجى نسخ الكود أدناه ولصقه في Firebase Console > Firestore Database > Rules." : "Your security rules are blocking the app. Go to Firebase Console > Firestore Database > Rules and paste this configuration:"}</p>
+                    <div className="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-xs overflow-x-auto mb-6 border border-slate-700"><pre>{`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}`}</pre></div>
+                    <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">{lang === 'ar' ? "تم التحديث، أعد تحميل الصفحة" : "I Updated It, Reload Page"}</button>
+                </div>
+            </div>
+        );
+
+        // --- ⏳ PENDING APPROVAL SCREEN ---
+        const PendingScreen = ({ t, onLogout }) => (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
+                <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-lg border border-white/50 backdrop-blur-xl text-center">
+                    <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500 animate-pulse">
+                        <Icon name="clock" size={40} />
                     </div>
-                    <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">
-                        {lang === 'ar' ? "تم التحديث، أعد تحميل الصفحة" : "I Updated It, Reload Page"}
+                    <h2 className="text-2xl font-bold text-slate-900 mb-4">{t.accountPending}</h2>
+                    <p className="text-slate-600 mb-8 leading-relaxed">{t.pendingMessage}</p>
+                    <button onClick={onLogout} className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-colors">
+                        <Icon name="log-out" size={18} className="inline mr-2" /> Logout
                     </button>
                 </div>
             </div>
         );
 
-        // --- COMPONENTS ---
-
-        // 1. Auth Screen
+        // --- 1. Auth Screen (Updated for Pending Status) ---
         const AuthScreen = ({ t, onLogin, lang, onError }) => {
             const [isRegister, setIsRegister] = useState(false);
             const [formData, setFormData] = useState({ email: '', password: '', name: '' });
@@ -364,223 +372,96 @@ service cloud.firestore {
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                
-                if (!window.firebaseLoaded) {
-                    setTimeout(() => onLogin({ uid: 'demo', email: formData.email, role: 'HR', name: 'Demo User' }), 1000);
-                    return;
-                }
-
+                if (!window.firebaseLoaded) { setTimeout(() => onLogin({ uid: 'demo', email: formData.email, role: 'HR', name: 'Demo User', status: 'active' }), 1000); return; }
                 try {
-                    let user;
                     if (isRegister) {
                         const cred = await window.createUserWithEmailAndPassword(window.auth, formData.email, formData.password);
-                        user = cred.user;
+                        const user = cred.user;
                         try {
-                            await window.setDoc(window.doc(window.db, "users", user.uid), {
-                                uid: user.uid,
-                                name: formData.name,
-                                email: formData.email,
-                                role: 'Employee',
-                                department: 'General',
-                                salary: 0,
-                                createdAt: window.serverTimestamp()
+                            // ✅ NEW USER: Status = 'pending'
+                            await window.setDoc(window.doc(window.db, "users", user.uid), { 
+                                uid: user.uid, 
+                                name: formData.name, 
+                                email: formData.email, 
+                                role: 'Employee', 
+                                department: 'General', 
+                                salary: 0, 
+                                status: 'pending', // Default status
+                                createdAt: window.serverTimestamp() 
                             });
                         } catch(e) { if(e.code === 'permission-denied') onError(); }
                     } else {
-                        const cred = await window.signInWithEmailAndPassword(window.auth, formData.email, formData.password);
-                        user = cred.user;
+                        await window.signInWithEmailAndPassword(window.auth, formData.email, formData.password);
                     }
-                    showToast("Welcome to HR Master!", "success");
-                } catch (err) {
-                    console.error(err);
-                    showToast(t.loginError || err.message, "error");
-                } finally {
-                    setLoading(false);
-                }
+                    // Auth state change will handle the redirect
+                } catch (err) { console.error(err); showToast(t.loginError || err.message, "error"); } finally { setLoading(false); }
             };
 
             return (
                 <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
                     <div className="bg-white p-8 md:p-10 rounded-3xl shadow-xl w-full max-w-md border border-white/50 backdrop-blur-xl animate-slide-up">
-                        <div className="flex justify-center mb-8">
-                            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                                <Icon name="activity" size={32} />
-                            </div>
-                        </div>
+                        <div className="flex justify-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200"><Icon name="activity" size={32} /></div></div>
                         <h2 className="text-3xl font-bold text-center mb-2 text-slate-900">{isRegister ? t.register : t.login}</h2>
                         <p className="text-center text-slate-500 mb-8 text-sm">Welcome back to your workspace</p>
-                        
                         <form onSubmit={handleSubmit} className="space-y-5">
-                            {isRegister && (
-                                <div>
-                                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.fullName}</label>
-                                    <input type="text" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                                        value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                                </div>
-                            )}
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.email}</label>
-                                <input type="email" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                                    value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.password}</label>
-                                <input type="password" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                                    value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                            </div>
-                            <button type="submit" disabled={loading} className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center gap-2">
-                                {loading ? <Icon name="loader" className="animate-spin" /> : (isRegister ? t.create : t.login)}
-                            </button>
+                            {isRegister && (<div><label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.fullName}</label><input type="text" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>)}
+                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.email}</label><input type="email" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+                            <div><label className="block text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">{t.password}</label><input type="password" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+                            <button type="submit" disabled={loading} className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center gap-2">{loading ? <Icon name="loader" className="animate-spin" /> : (isRegister ? t.create : t.login)}</button>
                         </form>
-                        <div className="mt-6 text-center">
-                            <button onClick={() => setIsRegister(!isRegister)} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-                                {isRegister ? t.haveAccount : t.noAccount}
-                            </button>
-                        </div>
+                        <div className="mt-6 text-center"><button onClick={() => setIsRegister(!isRegister)} className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">{isRegister ? t.haveAccount : t.noAccount}</button></div>
                     </div>
                 </div>
             );
         };
 
-        // 2. Sidebar
+        // --- 2. Sidebar ---
         const Sidebar = ({ view, setView, lang, t, isOpen, toggleSidebar, user }) => {
             const menuItems = [
                 { id: 'dashboard', icon: 'layout-dashboard', label: t.dashboard, roles: ['HR', 'Manager', 'Employee'] },
                 { id: 'attendance', icon: 'clock', label: t.attendance, roles: ['HR', 'Manager', 'Employee'] },
                 { id: 'requests', icon: 'file-check', label: t.requests, roles: ['HR', 'Manager', 'Employee'] },
-                { id: 'employees', icon: 'users', label: t.employees, roles: ['HR'] }, 
+                { id: 'employees', icon: 'users', label: t.employees, roles: ['HR', 'Manager'] }, 
                 { id: 'reports', icon: 'bar-chart-3', label: t.reports, roles: ['HR', 'Manager'] },
                 { id: 'meetings', icon: 'video', label: t.meetings, roles: ['HR', 'Manager', 'Employee'] },
                 { id: 'chat', icon: 'message-square', label: t.chat, roles: ['HR', 'Manager', 'Employee'] },
             ];
-
             const userRole = user?.role || 'Employee';
             const availableItems = menuItems.filter(item => item.roles.includes(userRole));
 
             return (
                 <>
                     {isOpen && <div onClick={toggleSidebar} className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm transition-opacity"></div>}
-                    
                     <div className={`fixed md:static z-30 h-full w-72 bg-slate-900 text-white flex flex-col shadow-2xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : (lang === 'ar' ? 'translate-x-full' : '-translate-x-full')} md:translate-x-0`}>
-                        <div className="p-8 flex items-center justify-between">
-                            <h1 className="text-2xl font-bold flex items-center gap-3 tracking-tight">
-                                <div className="bg-indigo-600 p-1.5 rounded-lg"><Icon name="activity" size={20} className="text-white" /></div>
-                                HR Master
-                            </h1>
-                            <button onClick={toggleSidebar} className="md:hidden text-slate-400 hover:text-white"><Icon name="x" /></button>
-                        </div>
-
-                        <div className="px-6 mb-6">
-                            <div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-sm font-bold shadow-lg">
-                                    {user?.name?.charAt(0).toUpperCase() || 'U'}
-                                </div>
-                                <div className="overflow-hidden">
-                                    <p className="text-sm font-semibold truncate">{user?.name || 'User'}</p>
-                                    <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">{t.roles[userRole.toLowerCase()] || userRole}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
-                            {availableItems.map(item => (
-                                <button key={item.id} onClick={() => { setView(item.id); if(window.innerWidth < 768) toggleSidebar(); }}
-                                    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group ${view === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 font-medium' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-                                    <Icon name={item.icon} size={20} className={`transition-colors ${view === item.id ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                                    <span>{item.label}</span>
-                                    {view === item.id && <Icon name="chevron-right" size={14} className="ml-auto opacity-50" />}
-                                </button>
-                            ))}
-                        </nav>
-
-                        <div className="p-4 mt-auto">
-                            <button onClick={() => window.auth ? window.signOut(window.auth) : window.location.reload()} className="w-full py-3 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50 border border-transparent rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 text-slate-400">
-                                <Icon name="log-out" size={16} /> Logout
-                            </button>
-                        </div>
+                        <div className="p-8 flex items-center justify-between"><h1 className="text-2xl font-bold flex items-center gap-3 tracking-tight"><div className="bg-indigo-600 p-1.5 rounded-lg"><Icon name="activity" size={20} className="text-white" /></div>HR Master</h1><button onClick={toggleSidebar} className="md:hidden text-slate-400 hover:text-white"><Icon name="x" /></button></div>
+                        <div className="px-6 mb-6"><div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-sm font-bold shadow-lg">{user?.name?.charAt(0).toUpperCase() || 'U'}</div><div className="overflow-hidden"><p className="text-sm font-semibold truncate">{user?.name || 'User'}</p><p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">{t.roles[userRole.toLowerCase()] || userRole}</p></div></div></div>
+                        <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">{availableItems.map(item => (<button key={item.id} onClick={() => { setView(item.id); if(window.innerWidth < 768) toggleSidebar(); }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group ${view === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 font-medium' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Icon name={item.icon} size={20} className={`transition-colors ${view === item.id ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} /><span>{item.label}</span>{view === item.id && <Icon name="chevron-right" size={14} className="ml-auto opacity-50" />}</button>))}</nav>
+                        <div className="p-4 mt-auto"><button onClick={() => window.auth ? window.signOut(window.auth) : window.location.reload()} className="w-full py-3 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50 border border-transparent rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 text-slate-400"><Icon name="log-out" size={16} /> Logout</button></div>
                     </div>
                 </>
             );
         };
 
-        // 3. Dashboard
+        // --- 3. Dashboard ---
         const Dashboard = ({ t, user, setView }) => {
             const stats = [
                 { title: t.status, val: "Active", icon: "activity", color: "text-green-600", bg: "bg-green-100" },
                 { title: t.department, val: user?.department || "General", icon: "briefcase", color: "text-blue-600", bg: "bg-blue-100" },
                 { title: t.role, val: user?.role, icon: "shield", color: "text-purple-600", bg: "bg-purple-100" },
             ];
-
             return (
                 <div className="space-y-8 animate-slide-up">
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 relative overflow-hidden">
-                        <div className="relative z-10">
-                            <h2 className="text-3xl font-bold mb-2">{t.welcome} {user?.name?.split(' ')[0]} 👋</h2>
-                            <p className="opacity-90">Here's what's happening in your workspace today.</p>
-                        </div>
-                        <Icon name="activity" size={150} className="absolute -right-6 -bottom-6 text-white opacity-10" />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {stats.map((stat, i) => (
-                            <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
-                                    <Icon name={stat.icon} size={28} />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-slate-500 font-medium">{stat.title}</p>
-                                    <h3 className="text-lg font-bold text-slate-800">{stat.val}</h3>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 relative overflow-hidden"><div className="relative z-10"><h2 className="text-3xl font-bold mb-2">{t.welcome} {user?.name?.split(' ')[0]} 👋</h2><p className="opacity-90">Here's what's happening in your workspace today.</p></div><Icon name="activity" size={150} className="absolute -right-6 -bottom-6 text-white opacity-10" /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">{stats.map((stat, i) => (<div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4"><div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}><Icon name={stat.icon} size={28} /></div><div><p className="text-sm text-slate-500 font-medium">{stat.title}</p><h3 className="text-lg font-bold text-slate-800">{stat.val}</h3></div></div>))}</div>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="zap" className="text-amber-500" /> {t.quickActions}</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <button onClick={() => setView('attendance')} className="p-4 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 transition-all text-center group">
-                                    <div className="w-10 h-10 mx-auto bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="clock" size={20} /></div>
-                                    <span className="text-sm font-medium text-slate-700">{t.attendance}</span>
-                                </button>
-                                <button onClick={() => setView('requests')} className="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 transition-all text-center group">
-                                    <div className="w-10 h-10 mx-auto bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="file-plus" size={20} /></div>
-                                    <span className="text-sm font-medium text-slate-700">{t.newRequest}</span>
-                                </button>
-                                <button onClick={() => setView('chat')} className="p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition-all text-center group">
-                                    <div className="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="message-square" size={20} /></div>
-                                    <span className="text-sm font-medium text-slate-700">{t.chat}</span>
-                                </button>
-                                <button onClick={() => setView('meetings')} className="p-4 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-100 hover:border-purple-200 transition-all text-center group">
-                                    <div className="w-10 h-10 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="video" size={20} /></div>
-                                    <span className="text-sm font-medium text-slate-700">{t.meetings}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-                            <h3 className="font-bold text-lg mb-4 text-slate-700">{t.attendanceOverview}</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1 text-slate-600"><span>Present</span><span className="font-bold text-emerald-600">92%</span></div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-emerald-500 h-2.5 rounded-full" style={{width: '92%'}}></div></div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1 text-slate-600"><span>Late</span><span className="font-bold text-amber-600">5%</span></div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-amber-500 h-2.5 rounded-full" style={{width: '5%'}}></div></div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1 text-slate-600"><span>Absent</span><span className="font-bold text-red-600">3%</span></div>
-                                    <div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-red-500 h-2.5 rounded-full" style={{width: '3%'}}></div></div>
-                                </div>
-                            </div>
-                        </div>
+                        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="zap" className="text-amber-500" /> {t.quickActions}</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><button onClick={() => setView('attendance')} className="p-4 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="clock" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.attendance}</span></button><button onClick={() => setView('requests')} className="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="file-plus" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.newRequest}</span></button><button onClick={() => setView('chat')} className="p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="message-square" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.chat}</span></button><button onClick={() => setView('meetings')} className="p-4 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-100 hover:border-purple-200 transition-all text-center group"><div className="w-10 h-10 mx-auto bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"><Icon name="video" size={20} /></div><span className="text-sm font-medium text-slate-700">{t.meetings}</span></button></div></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center"><h3 className="font-bold text-lg mb-4 text-slate-700">{t.attendanceOverview}</h3><div className="space-y-4"><div><div className="flex justify-between text-sm mb-1 text-slate-600"><span>Present</span><span className="font-bold text-emerald-600">92%</span></div><div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-emerald-500 h-2.5 rounded-full" style={{width: '92%'}}></div></div></div><div><div className="flex justify-between text-sm mb-1 text-slate-600"><span>Late</span><span className="font-bold text-amber-600">5%</span></div><div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-amber-500 h-2.5 rounded-full" style={{width: '5%'}}></div></div></div><div><div className="flex justify-between text-sm mb-1 text-slate-600"><span>Absent</span><span className="font-bold text-red-600">3%</span></div><div className="w-full bg-slate-100 rounded-full h-2.5"><div className="bg-red-500 h-2.5 rounded-full" style={{width: '3%'}}></div></div></div></div></div>
                     </div>
                 </div>
             );
         };
 
-        // 4. Attendance
+        // --- 4. Attendance ---
         const Attendance = ({ t, user, onError }) => {
             const [status, setStatus] = useState(null);
             const [logs, setLogs] = useState([]);
@@ -588,29 +469,17 @@ service cloud.firestore {
             const [currentTime, setCurrentTime] = useState(new Date());
             const showToast = useToast();
 
-            useEffect(() => {
-                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-                return () => clearInterval(timer);
-            }, []);
-
+            useEffect(() => { const timer = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(timer); }, []);
             useEffect(() => {
                 if (window.firebaseLoaded && window.db && user) {
-                    let q = user.role === 'HR' 
-                        ? window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc"))
-                        : window.query(window.collection(window.db, "attendance"), window.where("userId", "==", user.uid));
-
+                    let q = user.role === 'HR' ? window.query(window.collection(window.db, "attendance"), window.orderBy("timestamp", "desc")) : window.query(window.collection(window.db, "attendance"), window.where("userId", "==", user.uid));
                     const unsub = window.onSnapshot(q, (snap) => {
                         let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         if(user.role !== 'HR') data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                         setLogs(data);
-                        
                         const today = new Date().toDateString();
                         const lastLog = data[0];
-                        if (lastLog && new Date(lastLog.timestamp?.seconds * 1000).toDateString() === today && lastLog.type === 'in') {
-                            setStatus('Checked In');
-                        } else {
-                            setStatus(null);
-                        }
+                        if (lastLog && new Date(lastLog.timestamp?.seconds * 1000).toDateString() === today && lastLog.type === 'in') { setStatus('Checked In'); } else { setStatus(null); }
                     }, (err) => { if(err.code === 'permission-denied' && onError) onError(); });
                     return () => unsub();
                 }
@@ -619,39 +488,14 @@ service cloud.firestore {
             const handlePunch = async (type) => {
                 setLoading(true);
                 if (!navigator.geolocation) { showToast(t.gpsRequired, "error"); setLoading(false); return; }
-                
-                // ⚡️ HIGH ACCURACY GPS CONFIGURATION ⚡️
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 20000, 
-                    maximumAge: 0
-                };
-
-                const success = async (pos) => {
+                const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+                navigator.geolocation.getCurrentPosition(async (pos) => {
                     const loc = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
                     if (window.firebaseLoaded) {
-                        try {
-                            await window.addDoc(window.collection(window.db, "attendance"), {
-                                userId: user.uid,
-                                userName: user.name || user.email,
-                                type: type,
-                                location: loc,
-                                timestamp: window.serverTimestamp(),
-                                department: user.department || 'General' 
-                            });
-                            showToast(`Success: Checked ${type === 'in' ? 'In' : 'Out'}`, "success");
-                        } catch(err) { if(err.code === 'permission-denied' && onError) onError(); }
+                        try { await window.addDoc(window.collection(window.db, "attendance"), { userId: user.uid, userName: user.name || user.email, type: type, location: loc, timestamp: window.serverTimestamp(), department: user.department || 'General' }); showToast(`Success: Checked ${type === 'in' ? 'In' : 'Out'}`, "success"); } catch(err) { if(err.code === 'permission-denied' && onError) onError(); }
                     }
                     setLoading(false);
-                };
-
-                const error = (err) => {
-                    console.error("GPS Error:", err);
-                    showToast(t.gpsError || "GPS Error. Please enable high accuracy location.", "error");
-                    setLoading(false);
-                };
-                
-                navigator.geolocation.getCurrentPosition(success, error, options);
+                }, (err) => { console.error("GPS Error:", err); showToast(t.gpsError, "error"); setLoading(false); }, options);
             };
 
             return (
@@ -659,67 +503,19 @@ service cloud.firestore {
                     <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
                         <div className="p-8 md:p-12 text-center bg-slate-50 border-b border-slate-100">
                             <div className="mb-2 text-slate-500 font-medium uppercase tracking-widest text-xs">Current Time</div>
-                            <div className="text-5xl md:text-7xl font-bold text-slate-800 font-mono tracking-tighter mb-8">
-                                {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </div>
-                            
+                            <div className="text-5xl md:text-7xl font-bold text-slate-800 font-mono tracking-tighter mb-8">{currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                             <div className="flex justify-center">
-                                {!status ? 
-                                    <button onClick={() => handlePunch('in')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-emerald-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-200 hover:shadow-2xl hover:bg-emerald-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed">
-                                        <span className="relative z-10 flex items-center gap-3"><Icon name="log-in" /> {loading ? t.loading : t.checkIn}</span>
-                                    </button>
-                                : 
-                                    <button onClick={() => handlePunch('out')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-red-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-200 hover:shadow-2xl hover:bg-red-600 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed">
-                                        <span className="relative z-10 flex items-center gap-3"><Icon name="log-out" /> {loading ? t.loading : t.checkOut}</span>
-                                    </button>
-                                }
+                                {!status ? <button onClick={() => handlePunch('in')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-emerald-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-200 hover:shadow-2xl hover:bg-emerald-700 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"><span className="relative z-10 flex items-center gap-3"><Icon name="log-in" /> {loading ? t.loading : t.checkIn}</span></button> : <button onClick={() => handlePunch('out')} disabled={loading} className="group relative overflow-hidden px-10 py-5 bg-red-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-200 hover:shadow-2xl hover:bg-red-600 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"><span className="relative z-10 flex items-center gap-3"><Icon name="log-out" /> {loading ? t.loading : t.checkOut}</span></button>}
                             </div>
-                            {status && <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-bold animate-pulse-slow">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Currently Working
-                            </div>}
+                            {status && <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-bold animate-pulse-slow"><span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Currently Working</div>}
                         </div>
                     </div>
-
-                    <h3 className="font-bold text-lg px-2 text-slate-700">{t.recentActivity}</h3>
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b">
-                                <tr>
-                                    <th className="p-4">{user.role === 'HR' ? t.fullName : 'Date'}</th>
-                                    <th className="p-4">Type</th>
-                                    <th className="p-4">Time</th>
-                                    <th className="p-4 hidden md:table-cell">Location</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {logs.map(log => (
-                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4 font-medium text-slate-700">
-                                            {user.role === 'HR' ? (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold">{log.userName?.charAt(0)}</div>
-                                                    {log.userName}
-                                                </div>
-                                            ) : new Date(log.timestamp?.seconds * 1000).toLocaleDateString()}
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${log.type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                                                {log.type?.toUpperCase()}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-slate-600 font-mono">{log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td>
-                                        <td className="p-4 text-slate-400 text-xs hidden md:table-cell flex items-center gap-1"><Icon name="map-pin" size={12}/> {log.location}</td>
-                                    </tr>
-                                ))}
-                                {logs.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400 italic">No attendance records found.</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500 font-semibold border-b"><tr><th className="p-4">{user.role === 'HR' ? t.fullName : 'Date'}</th><th className="p-4">Type</th><th className="p-4">Time</th><th className="p-4 hidden md:table-cell">Location</th></tr></thead><tbody className="divide-y divide-slate-100">{logs.map(log => (<tr key={log.id} className="hover:bg-slate-50 transition-colors"><td className="p-4 font-medium text-slate-700">{user.role === 'HR' ? (<div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold">{log.userName?.charAt(0)}</div>{log.userName}</div>) : new Date(log.timestamp?.seconds * 1000).toLocaleDateString()}</td><td className="p-4"><span className={`px-2.5 py-1 rounded-full text-xs font-bold ${log.type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{log.type?.toUpperCase()}</span></td><td className="p-4 text-slate-600 font-mono">{log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}</td><td className="p-4 text-slate-400 text-xs hidden md:table-cell flex items-center gap-1"><Icon name="map-pin" size={12}/> {log.location}</td></tr>))}</tbody></table></div>
                 </div>
             );
         };
 
-        // 5. Requests
+        // --- 5. Requests ---
         const Requests = ({ t, user, onError }) => {
             const [requests, setRequests] = useState([]);
             const [tab, setTab] = useState('my');
@@ -729,10 +525,7 @@ service cloud.firestore {
 
             useEffect(() => {
                 if (window.firebaseLoaded && window.db && user) {
-                    let q = (user.role === 'HR' || user.role === 'Manager') 
-                        ? window.collection(window.db, "requests")
-                        : window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
-
+                    let q = (user.role === 'HR' || user.role === 'Manager') ? window.collection(window.db, "requests") : window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
                     const unsub = window.onSnapshot(q, (snap) => {
                         let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
@@ -745,29 +538,12 @@ service cloud.firestore {
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 if (window.firebaseLoaded) {
-                    try {
-                        await window.addDoc(window.collection(window.db, "requests"), {
-                            userId: user.uid,
-                            userName: user.name || user.email,
-                            type: newReq.type,
-                            reason: newReq.reason,
-                            status: 'Pending',
-                            timestamp: window.serverTimestamp()
-                        });
-                        showToast(t.reqSuccess, "success");
-                        setShowForm(false);
-                        setNewReq({ type: 'Leave', reason: '' });
-                    } catch (e) { console.error(e); showToast("Error submitting request", "error"); }
+                    try { await window.addDoc(window.collection(window.db, "requests"), { userId: user.uid, userName: user.name || user.email, type: newReq.type, reason: newReq.reason, status: 'Pending', timestamp: window.serverTimestamp() }); showToast(t.reqSuccess, "success"); setShowForm(false); setNewReq({ type: 'Leave', reason: '' }); } catch (e) { console.error(e); showToast("Error submitting request", "error"); }
                 }
             };
 
             const updateStatus = async (id, status) => {
-                if (window.firebaseLoaded) {
-                    try {
-                        await window.updateDoc(window.doc(window.db, "requests", id), { status: status });
-                        showToast(`Request ${status}`, status === 'Approved' ? 'success' : 'info');
-                    } catch (e) { console.error(e); }
-                }
+                if (window.firebaseLoaded) { try { await window.updateDoc(window.doc(window.db, "requests", id), { status: status }); showToast(`Request ${status}`, status === 'Approved' ? 'success' : 'info'); } catch (e) { console.error(e); } }
             };
 
             const canManage = user.role === 'HR' || user.role === 'Manager';
@@ -776,92 +552,15 @@ service cloud.firestore {
 
             return (
                 <div className="space-y-6 animate-slide-up">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2>
-                        <button onClick={() => setShowForm(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all">
-                            <Icon name="plus" size={18} /> {t.newRequest}
-                        </button>
-                    </div>
-
-                    <div className="flex p-1 bg-slate-200/50 rounded-xl w-fit border border-slate-200">
-                        <button onClick={() => setTab('my')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'my' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t.myRequests}</button>
-                        {canManage && (
-                            <button onClick={() => setTab('manage')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'manage' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t.manageRequests}</button>
-                        )}
-                    </div>
-
-                    {showForm && (
-                        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 animate-slide-up max-w-lg mx-auto">
-                            <h3 className="font-bold text-xl mb-6 text-slate-800">{t.newRequest}</h3>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">{t.type}</label>
-                                    <select className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={newReq.type} onChange={e => setNewReq({...newReq, type: e.target.value})}>
-                                        <option value="Leave">{t.leave}</option>
-                                        <option value="Loan">{t.loan}</option>
-                                        <option value="Overtime">{t.overtime}</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">{t.reason}</label>
-                                    <textarea required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" rows="3" value={newReq.reason} onChange={e => setNewReq({...newReq, reason: e.target.value})}></textarea>
-                                </div>
-                                <div className="flex justify-end gap-2 mt-4">
-                                    <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl font-medium transition-colors">{t.cancel}</button>
-                                    <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-md">{t.submit}</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    <div className="grid gap-4">
-                        {visibleRequests.map(req => (
-                            <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
-                                <div className="flex items-start gap-4">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                                        (req.type || '').toLowerCase() === 'leave' ? 'bg-orange-100 text-orange-600' : 
-                                        (req.type || '').toLowerCase() === 'loan' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
-                                    }`}>
-                                        <Icon name={(req.type || '').toLowerCase() === 'leave' ? 'calendar-off' : (req.type || '').toLowerCase() === 'loan' ? 'banknote' : 'clock'} size={24} />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-3 mb-1">
-                                            <h4 className="font-bold text-slate-800">{safeT(req.type)}</h4>
-                                            <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${
-                                                req.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : 
-                                                req.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                                            }`}>
-                                                {safeT(req.status)}
-                                            </span>
-                                        </div>
-                                        <p className="text-slate-600 text-sm mb-1">{req.reason}</p>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <Icon name="user" size={12} /> {req.userName} 
-                                            <span>•</span> 
-                                            {req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleDateString() : ''}
-                                        </div>
-                                    </div>
-                                </div>
-                                {canManage && tab === 'manage' && req.status === 'Pending' && (
-                                    <div className="flex gap-2 self-end md:self-center">
-                                        <button onClick={() => updateStatus(req.id, 'Approved')} className="flex items-center gap-1 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 font-bold transition-colors"><Icon name="check" size={16} /> {t.approve}</button>
-                                        <button onClick={() => updateStatus(req.id, 'Rejected')} className="flex items-center gap-1 px-4 py-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 font-bold transition-colors"><Icon name="x" size={16} /> {t.reject}</button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {visibleRequests.length === 0 && (
-                            <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 border-dashed">
-                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300"><Icon name="inbox" size={32} /></div>
-                                <p className="text-slate-400 font-medium">No requests found</p>
-                            </div>
-                        )}
-                    </div>
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2><button onClick={() => setShowForm(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"><Icon name="plus" size={18} /> {t.newRequest}</button></div>
+                    <div className="flex p-1 bg-slate-200/50 rounded-xl w-fit border border-slate-200"><button onClick={() => setTab('my')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'my' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t.myRequests}</button>{canManage && (<button onClick={() => setTab('manage')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'manage' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{t.manageRequests}</button>)}</div>
+                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 animate-slide-up max-w-lg mx-auto"><h3 className="font-bold text-xl mb-6 text-slate-800">{t.newRequest}</h3><form onSubmit={handleSubmit} className="space-y-4"><div><label className="block text-sm font-bold text-slate-700 mb-1">{t.type}</label><select className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={newReq.type} onChange={e => setNewReq({...newReq, type: e.target.value})}><option value="Leave">{t.leave}</option><option value="Loan">{t.loan}</option><option value="Overtime">{t.overtime}</option></select></div><div><label className="block text-sm font-bold text-slate-700 mb-1">{t.reason}</label><textarea required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" rows="3" value={newReq.reason} onChange={e => setNewReq({...newReq, reason: e.target.value})}></textarea></div><div className="flex justify-end gap-2 mt-4"><button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl font-medium transition-colors">{t.cancel}</button><button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-md">{t.submit}</button></div></form></div>)}
+                    <div className="grid gap-4">{visibleRequests.map(req => (<div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow"><div className="flex items-start gap-4"><div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${(req.type || '').toLowerCase() === 'leave' ? 'bg-orange-100 text-orange-600' : (req.type || '').toLowerCase() === 'loan' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}><Icon name={(req.type || '').toLowerCase() === 'leave' ? 'calendar-off' : (req.type || '').toLowerCase() === 'loan' ? 'banknote' : 'clock'} size={24} /></div><div><div className="flex items-center gap-3 mb-1"><h4 className="font-bold text-slate-800">{safeT(req.type)}</h4><span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${req.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : req.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>{safeT(req.status)}</span></div><p className="text-slate-600 text-sm mb-1">{req.reason}</p><div className="flex items-center gap-2 text-xs text-slate-400"><Icon name="user" size={12} /> {req.userName} <span>•</span> {req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleDateString() : ''}</div></div></div>{canManage && tab === 'manage' && req.status === 'Pending' && (<div className="flex gap-2 self-end md:self-center"><button onClick={() => updateStatus(req.id, 'Approved')} className="flex items-center gap-1 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 font-bold transition-colors"><Icon name="check" size={16} /> {t.approve}</button><button onClick={() => updateStatus(req.id, 'Rejected')} className="flex items-center gap-1 px-4 py-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 font-bold transition-colors"><Icon name="x" size={16} /> {t.reject}</button></div>)}</div>))}{visibleRequests.length === 0 && (<div className="text-center py-12 bg-white rounded-2xl border border-slate-100 border-dashed"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300"><Icon name="inbox" size={32} /></div><p className="text-slate-400 font-medium">No requests found</p></div>)}</div>
                 </div>
             );
         };
 
-        // 6. Reports (Fixed Table Structure)
+        // --- 6. Reports ---
         const Reports = ({ t, lang, user, onError }) => {
             const [activeReport, setActiveReport] = useState('employee');
             const [selectedDept, setSelectedDept] = useState('All');
@@ -878,119 +577,52 @@ service cloud.firestore {
 
             const departments = ['All', ...new Set(employees.map(e => e.department).filter(Boolean))];
             const filteredEmployees = selectedDept === 'All' ? employees : employees.filter(e => e.department === selectedDept);
-            const filteredLogs = selectedDept === 'All' ? logs : logs.filter(l => {
-                const emp = employees.find(e => e.uid === l.userId);
-                return emp && emp.department === selectedDept;
-            });
+            const filteredLogs = selectedDept === 'All' ? logs : logs.filter(l => { const emp = employees.find(e => e.uid === l.userId); return emp && emp.department === selectedDept; });
 
             return (
                 <div className="space-y-6 print-container animate-slide-up">
-                    <div className="flex justify-between items-center no-print">
-                        <h2 className="text-2xl font-bold text-slate-800">{t.reports}</h2>
-                        <button onClick={() => window.print()} className="bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-slate-700 shadow-lg transition-all print-allow">
-                            <Icon name="printer" size={18} /> {t.printReport}
-                        </button>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-6 no-print">
-                        <div className="min-w-[200px]">
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.reportType}</label>
-                            <select className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={activeReport} onChange={e => setActiveReport(e.target.value)}>
-                                <option value="employee">{t.employeeReport}</option>
-                                <option value="attendance">{t.attendanceReport}</option>
-                            </select>
-                        </div>
-                        <div className="min-w-[200px]">
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.filterByDept}</label>
-                            <select className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
-                                {departments.map(d => <option key={d} value={d}>{d === 'All' ? t.allDepts : d}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
+                    <div className="flex justify-between items-center no-print"><h2 className="text-2xl font-bold text-slate-800">{t.reports}</h2><button onClick={() => window.print()} className="bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-slate-700 shadow-lg transition-all print-allow"><Icon name="printer" size={18} /> {t.printReport}</button></div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-6 no-print"><div className="min-w-[200px]"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.reportType}</label><select className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={activeReport} onChange={e => setActiveReport(e.target.value)}><option value="employee">{t.employeeReport}</option><option value="attendance">{t.attendanceReport}</option></select></div><div className="min-w-[200px]"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t.filterByDept}</label><select className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>{departments.map(d => <option key={d} value={d}>{d === 'All' ? t.allDepts : d}</option>)}</select></div></div>
                     <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden card-shadow">
-                        <div className="p-8 border-b border-slate-100 bg-slate-50/50">
-                            <div className="flex justify-between items-end mb-4">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-slate-900">HR Master Report</h1>
-                                    <p className="text-slate-500 text-sm">{activeReport === 'employee' ? t.employeeReport : t.attendanceReport}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-400 uppercase tracking-wide">{t.generatedOn}</p>
-                                    <p className="font-mono text-sm">{new Date().toLocaleString()}</p>
-                                </div>
-                            </div>
-                            {activeReport === 'employee' && (
-                                <div className="flex gap-8 mt-6">
-                                    <div><p className="text-xs text-slate-400 uppercase">Count</p><p className="text-xl font-bold text-slate-800">{filteredEmployees.length}</p></div>
-                                    <div><p className="text-xs text-slate-400 uppercase">Payroll</p><p className="text-xl font-bold text-indigo-600">${filteredEmployees.reduce((a, c) => a + Number(c.salary||0), 0).toLocaleString()}</p></div>
-                                </div>
-                            )}
-                        </div>
-
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b">
-                                <tr>
-                                    {activeReport === 'employee' ? (
-                                        <React.Fragment>
-                                            <th className="p-4">{t.fullName}</th>
-                                            <th className="p-4">{t.email}</th>
-                                            <th className="p-4">{t.department}</th>
-                                            <th className="p-4">{t.role}</th>
-                                            <th className="p-4 text-right">{t.salary}</th>
-                                        </React.Fragment>
-                                    ) : (
-                                        <React.Fragment>
-                                            <th className="p-4">{t.fullName}</th>
-                                            <th className="p-4">Date</th>
-                                            <th className="p-4">Time</th>
-                                            <th className="p-4">Type</th>
-                                            <th className="p-4">Location</th>
-                                        </React.Fragment>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {activeReport === 'employee' ? filteredEmployees.map(e => (
-                                    <tr key={e.id}>
-                                        <td className="p-4 font-medium">{e.name}</td>
-                                        <td className="p-4 text-slate-500">{e.email}</td>
-                                        <td className="p-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{e.department}</span></td>
-                                        <td className="p-4 text-slate-600">{e.role}</td>
-                                        <td className="p-4 text-right font-mono">${Number(e.salary||0).toLocaleString()}</td>
-                                    </tr>
-                                )) : filteredLogs.map(l => (
-                                    <tr key={l.id}>
-                                        <td className="p-4 font-medium">{l.userName}</td>
-                                        <td className="p-4 text-slate-500">{new Date(l.timestamp?.seconds*1000).toLocaleDateString()}</td>
-                                        <td className="p-4 font-mono">{new Date(l.timestamp?.seconds*1000).toLocaleTimeString()}</td>
-                                        <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}`}>{l.type?.toUpperCase()}</span></td>
-                                        <td className="p-4 text-xs text-slate-400">{l.location}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="p-8 border-b border-slate-100 bg-slate-50/50"><div className="flex justify-between items-end mb-4"><div><h1 className="text-2xl font-bold text-slate-900">HR Master Report</h1><p className="text-slate-500 text-sm">{activeReport === 'employee' ? t.employeeReport : t.attendanceReport}</p></div><div className="text-right"><p className="text-xs text-slate-400 uppercase tracking-wide">{t.generatedOn}</p><p className="font-mono text-sm">{new Date().toLocaleString()}</p></div></div>{activeReport === 'employee' && (<div className="flex gap-8 mt-6"><div><p className="text-xs text-slate-400 uppercase">Count</p><p className="text-xl font-bold text-slate-800">{filteredEmployees.length}</p></div><div><p className="text-xs text-slate-400 uppercase">Payroll</p><p className="text-xl font-bold text-indigo-600">${filteredEmployees.reduce((a, c) => a + Number(c.salary||0), 0).toLocaleString()}</p></div></div>)}</div>
+                        <table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500 font-semibold border-b"><tr>{activeReport === 'employee' ? (<React.Fragment><th className="p-4">{t.fullName}</th><th className="p-4">{t.email}</th><th className="p-4">{t.department}</th><th className="p-4">{t.role}</th><th className="p-4 text-right">{t.salary}</th></React.Fragment>) : (<React.Fragment><th className="p-4">{t.fullName}</th><th className="p-4">Date</th><th className="p-4">Time</th><th className="p-4">Type</th><th className="p-4">Location</th></React.Fragment>)}</tr></thead><tbody className="divide-y divide-slate-100">{activeReport === 'employee' ? filteredEmployees.map(e => (<tr key={e.id}><td className="p-4 font-medium">{e.name}</td><td className="p-4 text-slate-500">{e.email}</td><td className="p-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{e.department}</span></td><td className="p-4 text-slate-600">{e.role}</td><td className="p-4 text-right font-mono">${Number(e.salary||0).toLocaleString()}</td></tr>)) : filteredLogs.map(l => (<tr key={l.id}><td className="p-4 font-medium">{l.userName}</td><td className="p-4 text-slate-500">{new Date(l.timestamp?.seconds*1000).toLocaleDateString()}</td><td className="p-4 font-mono">{new Date(l.timestamp?.seconds*1000).toLocaleTimeString()}</td><td className="p-4"><span className={`px-2 py-0.5 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}`}>{l.type?.toUpperCase()}</span></td><td className="p-4 text-xs text-slate-400">{l.location}</td></tr>))}</tbody></table>
                     </div>
                 </div>
             );
         };
 
-        // 7. Chat
+        // --- 7. Advanced Chat (Channels + DM + Search) ---
         const Chat = ({ t, user, onError }) => {
+            const [activeChannel, setActiveChannel] = useState('general');
             const [messages, setMessages] = useState([]);
             const [newMessage, setNewMessage] = useState("");
+            const [usersList, setUsersList] = useState([]);
+            const [searchQuery, setSearchQuery] = useState("");
             const bottomRef = useRef(null);
 
             useEffect(() => {
                 if (window.firebaseLoaded && window.db) {
-                    const q = window.query(window.collection(window.db, "messages"), window.orderBy("timestamp", "asc"));
+                    const unsub = window.onSnapshot(window.collection(window.db, "users"), (snap) => {
+                        setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.uid !== user.uid));
+                    });
+                    return () => unsub();
+                }
+            }, [user.uid]);
+
+            useEffect(() => {
+                if (window.firebaseLoaded && window.db) {
+                    const q = window.query(
+                        window.collection(window.db, "messages"), 
+                        window.where("channelId", "==", activeChannel),
+                        window.orderBy("timestamp", "asc")
+                    );
                     const unsub = window.onSnapshot(q, (snap) => {
                         setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
                         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
                     }, (err) => { if(err.code === 'permission-denied' && onError) onError(); });
                     return () => unsub();
                 }
-            }, []);
+            }, [activeChannel]);
 
             const handleSend = async (e) => {
                 e.preventDefault();
@@ -1001,6 +633,7 @@ service cloud.firestore {
                             text: newMessage,
                             userId: user.uid,
                             userName: user.name || user.email,
+                            channelId: activeChannel,
                             timestamp: window.serverTimestamp()
                         });
                         setNewMessage("");
@@ -1008,54 +641,55 @@ service cloud.firestore {
                 }
             };
 
+            const getDmId = (uid1, uid2) => [uid1, uid2].sort().join('_');
+            const filteredUsers = usersList.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
             return (
-                <div className="flex flex-col h-[calc(100vh-140px)] bg-slate-100 rounded-3xl shadow-inner border border-slate-200 overflow-hidden animate-slide-up relative">
-                    <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
-                    
-                    <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600"><Icon name="users" size={20}/></div>
-                            <div>
-                                <h3 className="font-bold text-slate-800">Team General</h3>
-                                <p className="text-xs text-green-500 font-medium flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online</p>
+                <div className="flex h-[calc(100vh-140px)] bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-slide-up">
+                    <div className="w-80 bg-slate-50 border-r border-slate-200 flex flex-col">
+                        <div className="p-4 border-b border-slate-200">
+                            <h3 className="font-bold text-slate-700 mb-3">{t.channels}</h3>
+                            <button onClick={() => setActiveChannel('general')} className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 ${activeChannel === 'general' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}># {t.generalChannel}</button>
+                            <button onClick={() => setActiveChannel(`dept_${user.department || 'General'}`)} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeChannel.startsWith('dept_') ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}># {t.deptChannel} ({user.department})</button>
+                        </div>
+                        <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
+                            <h3 className="font-bold text-slate-700 mb-3">{t.directMessages}</h3>
+                            <div className="mb-3 relative">
+                                <input placeholder={t.searchStaff} className="w-full pl-8 pr-3 py-2 text-sm border rounded-lg bg-white focus:ring-2 focus:ring-indigo-200 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                <Icon name="search" size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
                             </div>
+                            {filteredUsers.map(u => (
+                                <button key={u.id} onClick={() => setActiveChannel(getDmId(user.uid, u.uid))} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-1 ${activeChannel === getDmId(user.uid, u.uid) ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-200'}`}>
+                                    <div className="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-[10px] text-white">{u.name?.charAt(0)}</div>
+                                    <span className="truncate">{u.name}</span>
+                                </button>
+                            ))}
                         </div>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6 z-10 custom-scrollbar">
-                        {messages.map((m, i) => {
-                            const isMe = m.userId === user.uid;
-                            const showName = i === 0 || messages[i-1].userId !== m.userId;
-                            return (
-                                <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                    {showName && !isMe && <span className="text-xs text-slate-400 ml-3 mb-1">{m.userName}</span>}
-                                    <div className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-sm relative ${
-                                        isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-slate-800 rounded-bl-none'
-                                    }`}>
-                                        <p className="leading-relaxed text-sm">{m.text}</p>
-                                        <span className={`text-[10px] block text-right mt-1 opacity-60 ${isMe ? 'text-indigo-100' : 'text-slate-400'}`}>
-                                            {m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
-                                        </span>
+                    <div className="flex-1 flex flex-col bg-slate-100 relative">
+                        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
+                        <div className="p-4 bg-white border-b border-slate-200 shadow-sm z-10 flex justify-between items-center">
+                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600"><Icon name={activeChannel.includes('_') ? 'user' : 'hash'} size={20}/></div><div><h3 className="font-bold text-slate-800">{activeChannel === 'general' ? t.generalChannel : activeChannel.startsWith('dept_') ? `${t.deptChannel} (${user.department})` : usersList.find(u => getDmId(user.uid, u.uid) === activeChannel)?.name || 'Chat'}</h3><p className="text-xs text-green-500 font-medium flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online</p></div></div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 z-10 custom-scrollbar">
+                            {messages.map((m, i) => {
+                                const isMe = m.userId === user.uid;
+                                return (
+                                    <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                        {!isMe && activeChannel.includes('general') && <span className="text-xs text-slate-400 ml-3 mb-1">{m.userName}</span>}
+                                        <div className={`max-w-[75%] px-5 py-3 rounded-2xl shadow-sm relative ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-slate-800 rounded-bl-none'}`}><p className="leading-relaxed text-sm">{m.text}</p><span className={`text-[10px] block text-right mt-1 opacity-60 ${isMe ? 'text-indigo-100' : 'text-slate-400'}`}>{m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span></div>
                                     </div>
-                                </div>
-                            )
-                        })}
-                        <div ref={bottomRef}></div>
-                    </div>
-
-                    <div className="p-4 bg-white border-t border-slate-200 z-10">
-                        <form onSubmit={handleSend} className="flex gap-2 items-center bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-100 transition-all">
-                            <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder={t.typeMessage} className="flex-1 px-4 py-2 bg-transparent outline-none text-slate-800 placeholder:text-slate-400" />
-                            <button type="submit" className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50" disabled={!newMessage.trim()}>
-                                <Icon name="send" size={18} />
-                            </button>
-                        </form>
+                                )
+                            })}
+                            <div ref={bottomRef}></div>
+                        </div>
+                        <div className="p-4 bg-white border-t border-slate-200 z-10"><form onSubmit={handleSend} className="flex gap-2 items-center bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-100 transition-all"><input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder={t.typeMessage} className="flex-1 px-4 py-2 bg-transparent outline-none text-slate-800 placeholder:text-slate-400" /><button type="submit" className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50" disabled={!newMessage.trim()}><Icon name="send" size={18} /></button></form></div>
                     </div>
                 </div>
             );
         };
 
-        // --- MEETINGS & EMPLOYEES (Restored) ---
+        // --- 8. Meetings ---
         const Meetings = ({ t, user, onError }) => {
             const [meetings, setMeetings] = useState([]);
             const [showForm, setShowForm] = useState(false);
@@ -1087,63 +721,17 @@ service cloud.firestore {
 
             return (
                 <div className="space-y-6 animate-slide-up">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-slate-800">{t.meetings}</h2>
-                        {canCreate && <button onClick={() => setShowForm(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"><Icon name="plus" size={18} /> {t.scheduleMeeting}</button>}
-                    </div>
-
-                    {showForm && (
-                        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 max-w-lg mx-auto">
-                            <h3 className="font-bold text-xl mb-6">{t.scheduleMeeting}</h3>
-                            <form onSubmit={handleCreate} className="space-y-4">
-                                <input placeholder={t.meetingTitle} required className="w-full p-3 border rounded-xl bg-slate-50" value={newMeeting.title} onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <select className="p-3 border rounded-xl bg-slate-50" value={newMeeting.type} onChange={e => setNewMeeting({...newMeeting, type: e.target.value})}>
-                                        <option value="online">{t.online}</option>
-                                        <option value="onsite">{t.onsite}</option>
-                                    </select>
-                                    <input type="date" required className="p-3 border rounded-xl bg-slate-50" value={newMeeting.date} onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} />
-                                    <input type="time" required className="p-3 border rounded-xl bg-slate-50" value={newMeeting.time} onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} />
-                                </div>
-                                <div className="flex justify-end gap-2 mt-4">
-                                    <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl">{t.cancel}</button>
-                                    <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold">{t.create}</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    <div className="grid gap-4">
-                        {meetings.map(m => (
-                            <div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center hover:shadow-md transition-shadow">
-                                <div className="flex items-center gap-5">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${m.type === 'online' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}>
-                                        <Icon name={m.type === 'online' ? 'video' : 'users'} size={24} />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-lg text-slate-800">{m.title}</h3>
-                                        <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
-                                            <span className="flex items-center gap-1"><Icon name="calendar" size={14}/> {m.date}</span>
-                                            <span className="flex items-center gap-1"><Icon name="clock" size={14}/> {m.time}</span>
-                                        </div>
-                                        <p className="text-xs text-indigo-500 font-bold mt-1 uppercase tracking-wide">By {m.createdBy}</p>
-                                    </div>
-                                </div>
-                                {m.type === 'online' && m.link && (
-                                    <a href={m.link} target="_blank" className="bg-indigo-50 text-indigo-600 px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2">
-                                        <Icon name="link" size={16} /> {t.join}
-                                    </a>
-                                )}
-                            </div>
-                        ))}
-                        {meetings.length === 0 && <p className="text-center text-slate-400 py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">No scheduled meetings.</p>}
-                    </div>
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.meetings}</h2>{canCreate && <button onClick={() => setShowForm(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"><Icon name="plus" size={18} /> {t.scheduleMeeting}</button>}</div>
+                    {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 max-w-lg mx-auto"><h3 className="font-bold text-xl mb-6">{t.scheduleMeeting}</h3><form onSubmit={handleCreate} className="space-y-4"><input placeholder={t.meetingTitle} required className="w-full p-3 border rounded-xl bg-slate-50" value={newMeeting.title} onChange={e => setNewMeeting({...newMeeting, title: e.target.value})} /><div className="grid grid-cols-2 gap-4"><select className="p-3 border rounded-xl bg-slate-50" value={newMeeting.type} onChange={e => setNewMeeting({...newMeeting, type: e.target.value})}><option value="online">{t.online}</option><option value="onsite">{t.onsite}</option></select><input type="date" required className="p-3 border rounded-xl bg-slate-50" value={newMeeting.date} onChange={e => setNewMeeting({...newMeeting, date: e.target.value})} /><input type="time" required className="p-3 border rounded-xl bg-slate-50" value={newMeeting.time} onChange={e => setNewMeeting({...newMeeting, time: e.target.value})} /></div><div className="flex justify-end gap-2 mt-4"><button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl">{t.cancel}</button><button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold">{t.create}</button></div></form></div>)}
+                    <div className="grid gap-4">{meetings.map(m => (<div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center hover:shadow-md transition-shadow"><div className="flex items-center gap-5"><div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${m.type === 'online' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}><Icon name={m.type === 'online' ? 'video' : 'users'} size={24} /></div><div><h3 className="font-bold text-lg text-slate-800">{m.title}</h3><div className="flex items-center gap-3 text-sm text-slate-500 mt-1"><span className="flex items-center gap-1"><Icon name="calendar" size={14}/> {m.date}</span><span className="flex items-center gap-1"><Icon name="clock" size={14}/> {m.time}</span></div><p className="text-xs text-indigo-500 font-bold mt-1 uppercase tracking-wide">By {m.createdBy}</p></div></div>{m.type === 'online' && m.link && (<a href={m.link} target="_blank" className="bg-indigo-50 text-indigo-600 px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2"><Icon name="link" size={16} /> {t.join}</a>)}</div>))}{meetings.length === 0 && <p className="text-center text-slate-400 py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">No scheduled meetings.</p>}</div>
                 </div>
             );
         };
 
+        // --- 9. Employees (Modified for Approval Workflow) ---
         const Employees = ({ t, lang, user, onError }) => {
             const [users, setUsers] = useState([]);
+            const [tab, setTab] = useState('active'); // 'active' or 'pending'
             const [showForm, setShowForm] = useState(false);
             const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 });
             const [editingId, setEditingId] = useState(null);
@@ -1162,22 +750,52 @@ service cloud.firestore {
                     try {
                         if (editingId) {
                             await window.updateDoc(window.doc(window.db, "users", editingId), newUser);
-                            showToast("User updated", "success");
+                            showToast("User updated successfully", "success");
                         } else {
-                            await window.addDoc(window.collection(window.db, "users"), { ...newUser, createdAt: window.serverTimestamp(), dummyAuth: true });
-                            showToast("User added", "success");
+                            await window.addDoc(window.collection(window.db, "users"), { ...newUser, status: 'active', createdAt: window.serverTimestamp(), dummyAuth: true });
+                            showToast("User profile created", "success");
                         }
                         setShowForm(false); setEditingId(null);
-                    } catch (err) { console.error(err); }
+                        setNewUser({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 });
+                    } catch (err) { console.error(err); showToast("Error saving user", "error"); }
                 }
             };
+
+            const handleDelete = async (id) => {
+                if (confirm(t.confirmDelete)) {
+                    try {
+                        await window.deleteDoc(window.doc(window.db, "users", id));
+                        showToast("User removed successfully", "success");
+                    } catch (err) { console.error(err); showToast("Error removing user", "error"); }
+                }
+            };
+
+            const handleApprove = async (id) => {
+                try {
+                    await window.updateDoc(window.doc(window.db, "users", id), { status: 'active' });
+                    showToast("User Approved", "success");
+                } catch(e) { console.error(e); }
+            };
+
+            const pendingUsers = users.filter(u => u.status === 'pending');
+            const activeUsers = users.filter(u => u.status !== 'pending');
+            const visibleUsers = tab === 'active' ? activeUsers : pendingUsers;
 
             return (
                 <div className="space-y-6 animate-slide-up">
                     <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-bold text-slate-800">{t.employees}</h2>
-                        <button onClick={() => { setEditingId(null); setShowForm(true); }} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg transition-all"><Icon name="user-plus" size={18} /> {t.addEmployee}</button>
+                        <button onClick={() => { setEditingId(null); setNewUser({ name: '', email: '', role: 'Employee', department: 'IT', salary: 0 }); setShowForm(true); }} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-lg transition-all"><Icon name="user-plus" size={18} /> {t.addEmployee}</button>
                     </div>
+
+                    <div className="flex gap-2 border-b mb-4">
+                        <button onClick={() => setTab('active')} className={`px-4 py-2 border-b-2 font-bold ${tab === 'active' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>{t.activeEmployees} ({activeUsers.length})</button>
+                        <button onClick={() => setTab('pending')} className={`px-4 py-2 border-b-2 font-bold flex items-center gap-2 ${tab === 'pending' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>
+                            {t.joinRequests} 
+                            {pendingUsers.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingUsers.length}</span>}
+                        </button>
+                    </div>
+
                     {showForm && (
                         <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 mb-6">
                             <h3 className="font-bold text-xl mb-6">{editingId ? "Edit User" : "New User"}</h3>
@@ -1200,11 +818,13 @@ service cloud.firestore {
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 text-slate-500 font-semibold border-b">
                                 <tr>
-                                    <th className="p-4">{t.fullName}</th><th className="p-4">{t.role}</th><th className="p-4">{t.department}</th><th className="p-4">{t.salary}</th><th className="p-4 w-20">{t.actions}</th>
+                                    <th className="p-4">{t.fullName}</th><th className="p-4">{t.role}</th><th className="p-4">{t.department}</th>
+                                    {tab === 'active' && <th className="p-4">{t.salary}</th>}
+                                    <th className="p-4 w-40 text-center">{t.actions}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {users.map(u => (
+                                {visibleUsers.map(u => (
                                     <tr key={u.id} className="hover:bg-slate-50">
                                         <td className="p-4 font-medium flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">{u.name?.charAt(0)}</div>
@@ -1212,10 +832,23 @@ service cloud.firestore {
                                         </td>
                                         <td className="p-4"><span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">{u.role}</span></td>
                                         <td className="p-4 text-slate-600">{u.department}</td>
-                                        <td className="p-4 font-mono text-slate-600">${Number(u.salary||0).toLocaleString()}</td>
-                                        <td className="p-4"><button onClick={() => { setNewUser(u); setEditingId(u.id); setShowForm(true); }} className="p-2 hover:bg-slate-100 rounded-lg text-indigo-600"><Icon name="pencil" size={16} /></button></td>
+                                        {tab === 'active' && <td className="p-4 font-mono text-slate-600">${Number(u.salary||0).toLocaleString()}</td>}
+                                        <td className="p-4 flex justify-center gap-2">
+                                            {tab === 'active' ? (
+                                                <>
+                                                    <button onClick={() => { setNewUser(u); setEditingId(u.id); setShowForm(true); }} className="p-2 hover:bg-slate-100 rounded-lg text-indigo-600"><Icon name="pencil" size={16} /></button>
+                                                    <button onClick={() => handleDelete(u.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-600"><Icon name="trash-2" size={16} /></button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button onClick={() => handleApprove(u.id)} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold hover:bg-green-200">{t.approveUser}</button>
+                                                    <button onClick={() => handleDelete(u.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200">{t.rejectUser}</button>
+                                                </>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
+                                {visibleUsers.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400">No records found.</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -1240,9 +873,13 @@ service cloud.firestore {
                             try {
                                 const docSnap = await window.getDoc(window.doc(window.db, "users", authUser.uid));
                                 if (docSnap.exists()) {
-                                    setUser({ ...authUser, ...docSnap.data() });
+                                    const userData = docSnap.data();
+                                    // Treat missing 'status' as 'active' for backward compatibility
+                                    const status = userData.status || 'active';
+                                    setUser({ ...authUser, ...userData, status });
                                 } else {
-                                    setUser({ ...authUser, role: 'Employee', name: authUser.email.split('@')[0] });
+                                    // Fallback for demo users or incomplete profiles
+                                    setUser({ ...authUser, role: 'Employee', name: authUser.email.split('@')[0], status: 'active' });
                                 }
                             } catch (e) {
                                 console.error("Error fetching user profile", e);
@@ -1276,6 +913,17 @@ service cloud.firestore {
                 );
             }
 
+            // 🚫 CHECK PENDING STATUS 🚫
+            if (user.status === 'pending') {
+                return (
+                    <ToastProvider>
+                        <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={lang === 'ar' ? 'font-arabic' : 'font-sans'}>
+                            <PendingScreen t={t} onLogout={() => window.signOut(window.auth)} />
+                        </div>
+                    </ToastProvider>
+                );
+            }
+
             return (
                 <ToastProvider>
                     <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className={`flex h-screen bg-slate-50 ${lang === 'ar' ? 'font-arabic' : 'font-sans'}`}>
@@ -1297,8 +945,8 @@ service cloud.firestore {
                             <main className="flex-1 overflow-auto p-4 md:p-8 relative scroll-smooth">
                                 {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} />}
                                 {view === 'attendance' && <Attendance t={t} user={user} onError={() => setPermError(true)} />}
-                                {view === 'employees' && (user.role === 'HR' ? <Employees t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="lock" size={48} className="text-slate-300" /><p className="font-medium">{t.accessDenied}</p></div>)}
-                                {view === 'reports' && (user.role === 'HR' || user.role === 'Manager' ? <Reports t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="lock" size={48} className="text-slate-300" /><p className="font-medium">{t.accessDenied}</p></div>)}
+                                {view === 'employees' && (['HR', 'Manager'].includes(user.role) ? <Employees t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="lock" size={48} className="text-slate-300" /><p className="font-medium">{t.accessDenied}</p></div>)}
+                                {view === 'reports' && (['HR', 'Manager'].includes(user.role) ? <Reports t={t} lang={lang} user={user} onError={() => setPermError(true)} /> : <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4"><Icon name="lock" size={48} className="text-slate-300" /><p className="font-medium">{t.accessDenied}</p></div>)}
                                 {view === 'requests' && <Requests t={t} user={user} onError={() => setPermError(true)} />}
                                 {view === 'chat' && <Chat t={t} user={user} onError={() => setPermError(true)} />}
                                 {view === 'meetings' && <Meetings t={t} user={user} onError={() => setPermError(true)} />}
