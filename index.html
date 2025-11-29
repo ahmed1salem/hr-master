@@ -39,7 +39,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyBTLUtRTuECf4SKZ_Jf33Gr1oFvnq1OnnQ",
@@ -62,6 +62,7 @@
             window.doc = doc;
             window.setDoc = setDoc;
             window.getDoc = getDoc;
+            window.getDocs = getDocs;
             window.addDoc = addDoc;
             window.updateDoc = updateDoc;
             window.deleteDoc = deleteDoc;
@@ -519,7 +520,203 @@
             );
         };
 
-        const Reports = ({ t }) => <div className="p-10 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-300"><Icon name="bar-chart-2" size={48} className="mx-auto mb-4 opacity-50"/><h3 className="text-xl font-bold text-slate-600">Global Reports Module</h3><p>Use "Employees" section for detailed individual reports.</p></div>;
+        const Reports = ({ t }) => {
+            const [filters, setFilters] = useState({
+                type: 'attendance',
+                startDate: new Date().toISOString().split('T')[0],
+                endDate: new Date().toISOString().split('T')[0],
+                department: 'All',
+                employeeId: 'All'
+            });
+            const [data, setData] = useState([]);
+            const [users, setUsers] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [departments, setDepartments] = useState([]);
+
+            useEffect(() => {
+                if(!window.firebaseLoaded) return;
+                const unsub = window.onSnapshot(window.collection(window.db, "users"), s => {
+                    const u = s.docs.map(d => ({id:d.id, ...d.data()}));
+                    setUsers(u);
+                    setDepartments([...new Set(u.map(user => user.department).filter(Boolean))]);
+                });
+                return () => unsub();
+            }, []);
+
+            useEffect(() => {
+                if(!window.firebaseLoaded) return;
+                const fetchReport = async () => {
+                    setLoading(true);
+                    try {
+                        let result = [];
+                        const start = new Date(filters.startDate); start.setHours(0,0,0,0);
+                        const end = new Date(filters.endDate); end.setHours(23,59,59,999);
+
+                        // 1. Attendance Report
+                        if (filters.type === 'attendance') {
+                            const q = window.query(window.collection(window.db, "attendance"));
+                            const snap = await window.getDocs(q);
+                            result = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(item => {
+                                const date = item.timestamp ? new Date(item.timestamp.seconds * 1000) : null;
+                                return date && date >= start && date <= end;
+                            }).map(item => {
+                                const user = users.find(u => u.uid === item.userId || u.id === item.userId);
+                                return { ...item, userName: user?.name || item.userName, department: user?.department };
+                            });
+                        }
+                        // 2. Requests Report
+                        else if (filters.type === 'requests') {
+                            const q = window.query(window.collection(window.db, "requests"));
+                            const snap = await window.getDocs(q);
+                            result = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(item => {
+                                const date = item.timestamp ? new Date(item.timestamp.seconds * 1000) : null;
+                                return date && date >= start && date <= end;
+                            }).map(item => {
+                                const user = users.find(u => u.uid === item.userId || u.id === item.userId);
+                                return { ...item, department: user?.department };
+                            });
+                        }
+                        // 3. Employees Directory
+                        else if (filters.type === 'employees') {
+                            result = users;
+                        }
+                        // 4. Financials
+                        else if (filters.type === 'financials') {
+                             // Fetch Attendance
+                             const attQ = window.query(window.collection(window.db, "attendance"));
+                             const attSnap = await window.getDocs(attQ);
+                             const allAttendance = attSnap.docs.map(d => ({...d.data()}));
+
+                             // Fetch Deductions
+                             const dedQ = window.query(window.collection(window.db, "deductions"));
+                             const dedSnap = await window.getDocs(dedQ);
+                             const allDeductions = dedSnap.docs.map(d => ({...d.data()}));
+
+                             result = users.map(user => {
+                                 const userLogs = allAttendance.filter(l => (l.userId === user.uid || l.userId === user.id) && l.timestamp && new Date(l.timestamp.seconds*1000) >= start && new Date(l.timestamp.seconds*1000) <= end);
+                                 const userDeds = allDeductions.filter(d => (d.userId === user.uid || d.userId === user.id) && d.date && new Date(d.date) >= start && new Date(d.date) <= end);
+
+                                 const financials = window.HRUtils ? window.HRUtils.calculateFinancials(user, userLogs, userDeds) : {};
+                                 return { ...user, ...financials, logsCount: userLogs.length, dedsCount: userDeds.length };
+                             });
+                        }
+
+                        // Apply Common Filters
+                        if (filters.department !== 'All') {
+                            result = result.filter(item => item.department === filters.department);
+                        }
+                        if (filters.employeeId !== 'All') {
+                            result = result.filter(item => (item.userId === filters.employeeId || item.id === filters.employeeId || item.uid === filters.employeeId));
+                        }
+
+                        // Sort by date if available, else by name
+                        result.sort((a,b) => {
+                            const dateA = a.timestamp?.seconds || (a.date ? new Date(a.date).getTime()/1000 : 0);
+                            const dateB = b.timestamp?.seconds || (b.date ? new Date(b.date).getTime()/1000 : 0);
+                            return dateB - dateA;
+                        });
+
+                        setData(result);
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                // Debounce slightly to avoid rapid firing if users type fast (though here it's selects/dates)
+                const timer = setTimeout(fetchReport, 500);
+                return () => clearTimeout(timer);
+            }, [filters, users]); // Re-run when filters or users list changes
+
+            const print = () => window.print();
+
+            return (
+                <div className="space-y-6 animate-fade-in pb-10">
+                    <div className="flex justify-between items-center no-print">
+                        <h2 className="text-2xl font-bold text-slate-800">{t.reports}</h2>
+                        <button onClick={print} className="bg-slate-800 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg hover:bg-slate-700 transition-colors"><Icon name="printer" size={18}/> {t.printReport}</button>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t.reportType}</label><select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-primary-500" value={filters.type} onChange={e=>setFilters({...filters, type:e.target.value})}><option value="attendance">{t.attendanceReport}</option><option value="requests">{t.requests}</option><option value="employees">{t.employees}</option><option value="financials">Financials</option></select></div>
+                            {filters.type !== 'employees' && (<>
+                                <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t.from}</label><input type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-primary-500" value={filters.startDate} onChange={e=>setFilters({...filters, startDate:e.target.value})} /></div>
+                                <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t.to}</label><input type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-primary-500" value={filters.endDate} onChange={e=>setFilters({...filters, endDate:e.target.value})} /></div>
+                            </>)}
+                            <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t.filterByDept}</label><select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-primary-500" value={filters.department} onChange={e=>setFilters({...filters, department:e.target.value})}><option value="All">{t.allDepts}</option>{departments.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+                            <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Employee</label><select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-primary-500" value={filters.employeeId} onChange={e=>setFilters({...filters, employeeId:e.target.value})}><option value="All">All Employees</option>{users.map(u=><option key={u.id} value={u.uid || u.id}>{u.name}</option>)}</select></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print-container">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                             <div>
+                                <h3 className="font-bold text-lg text-slate-800 capitalize">{filters.type} Report</h3>
+                                <p className="text-xs text-slate-500">{filters.type !== 'employees' ? `${filters.startDate} to ${filters.endDate}` : `Generated on ${new Date().toLocaleDateString()}`}</p>
+                             </div>
+                             <div className="text-right">
+                                <p className="text-xs text-slate-400 font-bold uppercase">Total Records</p>
+                                <p className="text-2xl font-bold text-slate-700">{data.length}</p>
+                             </div>
+                        </div>
+
+                        {loading ? <div className="p-10 text-center text-slate-400">Loading data...</div> : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
+                                        <tr>
+                                            {filters.type === 'attendance' && <><th className="p-4">{t.date}</th><th className="p-4">{t.fullName}</th><th className="p-4">{t.type}</th><th className="p-4">Time</th><th className="p-4">Late</th><th className="p-4">Dept</th></>}
+                                            {filters.type === 'requests' && <><th className="p-4">{t.date}</th><th className="p-4">{t.fullName}</th><th className="p-4">{t.type}</th><th className="p-4">{t.reason}</th><th className="p-4">{t.status}</th><th className="p-4">Dept</th></>}
+                                            {filters.type === 'employees' && <><th className="p-4">{t.fullName}</th><th className="p-4">{t.role}</th><th className="p-4">{t.department}</th><th className="p-4">{t.email}</th><th className="p-4">{t.status}</th></>}
+                                            {filters.type === 'financials' && <><th className="p-4">{t.fullName}</th><th className="p-4">{t.salary}</th><th className="p-4">Net Salary</th><th className="p-4">Deductions</th><th className="p-4">Late Cost</th></>}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {data.map((item, i) => (
+                                            <tr key={item.id || i} className="hover:bg-slate-50/50 transition-colors">
+                                                {filters.type === 'attendance' && <>
+                                                    <td className="p-4 font-medium text-slate-700">{new Date(item.timestamp.seconds*1000).toLocaleDateString()}</td>
+                                                    <td className="p-4 font-bold text-slate-800">{item.userName}</td>
+                                                    <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${item.type==='in'?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{item.type.toUpperCase()}</span></td>
+                                                    <td className="p-4 font-mono text-slate-600">{new Date(item.timestamp.seconds*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                                                    <td className="p-4 font-bold text-red-500">{item.type === 'in' && window.HRUtils ? `+${window.HRUtils.calculateLateness(item.timestamp.seconds, users.find(u=>u.uid===item.userId)?.shiftStart)}m` : '-'}</td>
+                                                    <td className="p-4 text-slate-500">{item.department}</td>
+                                                </>}
+                                                {filters.type === 'requests' && <>
+                                                    <td className="p-4 font-medium text-slate-700">{new Date(item.timestamp.seconds*1000).toLocaleDateString()}</td>
+                                                    <td className="p-4 font-bold text-slate-800">{item.userName}</td>
+                                                    <td className="p-4"><span className="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">{item.type}</span></td>
+                                                    <td className="p-4 text-slate-600 max-w-[200px] truncate">{item.reason}</td>
+                                                    <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status==='Approved'?'bg-green-50 text-green-700':item.status==='Rejected'?'bg-red-50 text-red-700':'bg-yellow-50 text-yellow-700'}`}>{item.status}</span></td>
+                                                    <td className="p-4 text-slate-500">{item.department}</td>
+                                                </>}
+                                                {filters.type === 'employees' && <>
+                                                    <td className="p-4 font-bold text-slate-800">{item.name}</td>
+                                                    <td className="p-4 text-slate-600">{item.position || item.role}</td>
+                                                    <td className="p-4 text-slate-600">{item.department}</td>
+                                                    <td className="p-4 text-slate-500 text-sm">{item.email}</td>
+                                                    <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status==='active'?'bg-green-50 text-green-700':'bg-yellow-50 text-yellow-700'}`}>{item.status}</span></td>
+                                                </>}
+                                                {filters.type === 'financials' && <>
+                                                    <td className="p-4 font-bold text-slate-800">{item.name}</td>
+                                                    <td className="p-4 font-mono text-slate-600">${Number(item.salary).toLocaleString()}</td>
+                                                    <td className="p-4 font-mono font-bold text-emerald-600">${Number(item.netSalary).toLocaleString()}</td>
+                                                    <td className="p-4 font-mono text-red-500">-${item.totalDeductions}</td>
+                                                    <td className="p-4 font-mono text-orange-500">-${item.lateCost}</td>
+                                                </>}
+                                            </tr>
+                                        ))}
+                                        {data.length === 0 && <tr><td colSpan="6" className="p-10 text-center text-slate-400">No records found matching filters.</td></tr>}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
 
         const App = () => {
             const [user, setUser] = useState(null);
@@ -576,14 +773,14 @@
                 <ToastProvider>
                     {permError && <PermissionHelpModal onClose={()=>setPermError(false)} />}
                     <div dir={lang==='ar'?'rtl':'ltr'} className={`flex h-full ${lang==='ar'?'font-arabic':''}`}>
-                        <div className={`fixed md:static inset-y-0 z-30 w-72 bg-slate-900 text-white transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : (lang==='ar'?'translate-x-full':'-translate-x-full')} md:translate-x-0 flex flex-col shadow-2xl`}>
+                        <div className={`no-print fixed md:static inset-y-0 z-30 w-72 bg-slate-900 text-white transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : (lang==='ar'?'translate-x-full':'-translate-x-full')} md:translate-x-0 flex flex-col shadow-2xl`}>
                             <div className="p-8 flex items-center justify-between"><h1 className="text-xl font-bold flex gap-3 items-center"><span className="bg-primary-600 p-1.5 rounded-lg"><Icon name="hexagon" className="text-white"/></span> {t.appName}</h1><button onClick={()=>setSidebarOpen(false)} className="md:hidden text-slate-400"><Icon name="x"/></button></div>
                             <div className="px-6 mb-6"><div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center font-bold text-sm">{user.name?.charAt(0)}</div><div className="overflow-hidden"><p className="font-bold text-sm truncate">{user.name}</p><p className="text-[10px] text-slate-400 uppercase tracking-wider">{t.roles[user.role.toLowerCase()]}</p></div></div></div>
                             <nav className="flex-1 px-4 space-y-1 overflow-y-auto">{menu.map(m => (<button key={m.id} onClick={()=>{setView(m.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all group ${view===m.id ? 'bg-primary-600 text-white shadow-lg font-medium' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Icon name={m.icon} size={20} className={view===m.id?'text-white':'text-slate-500 group-hover:text-white'} /><span>{m.label}</span></button>))}</nav>
                             <div className="p-4"><button onClick={()=>window.signOut(window.auth)} className="w-full py-3 bg-slate-800 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-900/20 transition-all flex items-center justify-center gap-2 font-medium text-sm"><Icon name="log-out" size={16}/> Logout</button></div>
                         </div>
                         <div className="flex-1 flex flex-col overflow-hidden relative bg-slate-50/50">
-                            <header className="h-20 bg-white/80 backdrop-blur border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20"><div className="flex items-center gap-4"><button onClick={()=>setSidebarOpen(true)} className="md:hidden text-slate-500"><Icon name="menu"/></button><h2 className="text-xl font-bold text-slate-800">{menu.find(m=>m.id===view)?.label || t.dashboard}</h2></div><button onClick={()=>setLang(l=>l==='en'?'ar':'en')} className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold hover:bg-slate-50 transition-colors uppercase">{lang}</button></header>
+                            <header className="no-print h-20 bg-white/80 backdrop-blur border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20"><div className="flex items-center gap-4"><button onClick={()=>setSidebarOpen(true)} className="md:hidden text-slate-500"><Icon name="menu"/></button><h2 className="text-xl font-bold text-slate-800">{menu.find(m=>m.id===view)?.label || t.dashboard}</h2></div><button onClick={()=>setLang(l=>l==='en'?'ar':'en')} className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold hover:bg-slate-50 transition-colors uppercase">{lang}</button></header>
                             <main className="flex-1 overflow-auto p-6 md:p-10">
                                 {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} requests={globalRequests} users={allUsers} />}
                                 {view === 'attendance' && <Attendance t={t} user={user} onError={()=>setPermError(true)} />}
