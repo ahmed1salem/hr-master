@@ -269,7 +269,7 @@
             );
         };
 
-        const EmployeeProfile = ({ t, employee, onBack, isHR, onError }) => {
+        const EmployeeProfile = ({ t, employee, onBack, isHR, onError, onEdit }) => {
             const [logs, setLogs] = useState([]);
             const [custodyList, setCustodyList] = useState([]);
             const [deductionsList, setDeductionsList] = useState([]);
@@ -307,7 +307,10 @@
 
             return (
                 <div className="space-y-6 pb-10 animate-fade-in">
-                    <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 no-print font-bold"><Icon name="arrow-left" size={20} /> Back</button>
+                    <div className="flex justify-between items-center no-print">
+                        <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold"><Icon name="arrow-left" size={20} /> Back</button>
+                        {isHR && onEdit && <button onClick={() => onEdit(employee)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"><Icon name="edit" size={16}/> {t.edit}</button>}
+                    </div>
                     <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-8 relative overflow-hidden print-container">
                         <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-primary-600 to-primary-800"></div>
                         <div className="relative z-10 mt-4 md:mt-0"><div className="w-28 h-28 rounded-full border-4 border-white shadow-lg bg-slate-100 flex items-center justify-center text-3xl font-bold text-slate-400">{employee.name?.charAt(0)}</div></div>
@@ -351,7 +354,7 @@
                 } catch(e) { console.error(e); }
             };
 
-            if (viewId) return <EmployeeProfile t={t} employee={users.find(u => u.id === viewId)} onBack={()=>setViewId(null)} isHR={true} onError={onError} />;
+            if (viewId) return <EmployeeProfile t={t} employee={users.find(u => u.id === viewId)} onBack={()=>setViewId(null)} isHR={true} onError={onError} onEdit={(u) => { setFormData(u); setShowForm(true); setViewId(null); }} />;
             const pending = users.filter(u => u.status === 'pending');
             const active = users.filter(u => u.status !== 'pending');
             const list = tab === 'active' ? active : pending;
