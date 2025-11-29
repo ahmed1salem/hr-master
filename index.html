@@ -391,7 +391,8 @@
 
             const submit = async (e) => {
                 e.preventDefault();
-                await window.addDoc(window.collection(window.db, "requests"), { userId: user.uid, userName: user.name, ...form, status: 'Pending', timestamp: window.serverTimestamp() });
+                const status = ['HR', 'Manager'].includes(user.role) ? 'Approved' : 'Pending';
+                await window.addDoc(window.collection(window.db, "requests"), { userId: user.uid, userName: user.name, ...form, status, timestamp: window.serverTimestamp() });
                 setShowForm(false); showToast(t.reqSuccess, "success");
             };
 
