@@ -370,7 +370,7 @@
             );
         };
 
-        const Requests = ({ t, user, onError }) => {
+        const Requests = ({ t, user, users = [], onError }) => {
             const [list, setList] = useState([]);
             const [showForm, setShowForm] = useState(false);
             const [form, setForm] = useState({ type: 'Leave', reason: '' });
@@ -402,7 +402,10 @@
                 <div className="space-y-6 animate-fade-in pb-10">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2><button onClick={()=>setShowForm(true)} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg"><Icon name="plus" size={18}/> {t.newRequest}</button></div>
                     {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl mb-6"><form onSubmit={submit} className="space-y-4"><select className="w-full p-3 border rounded-xl" onChange={e=>setForm({...form, type:e.target.value})}><option value="Leave">{t.leave}</option><option value="Permission">{t.permission}</option><option value="Loan">{t.loan}</option></select>{form.type === 'Permission' && <div className="flex gap-2"><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, from:e.target.value})} /><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, to:e.target.value})} /></div>}<textarea className="w-full p-3 border rounded-xl" placeholder={t.reason} required onChange={e=>setForm({...form, reason:e.target.value})} /><div className="flex justify-end gap-2"><button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button><button className="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold">{t.submit}</button></div></form></div>)}
-                    <div className="grid gap-4">{list.map(r => (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Icon name="user" size={12}/> {r.userName}</p></div>{['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}</div>))}</div>
+                    <div className="grid gap-4">{list.map(r => {
+                        const reqUser = users.find(u => u.uid === r.userId);
+                        return (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><div className="mt-2 flex items-start gap-1 text-slate-400"><Icon name="user" size={12} className="mt-0.5"/><div><p className="text-xs font-bold text-slate-500">{r.userName}</p>{reqUser?.department && <p className="text-[10px] uppercase text-slate-300">{reqUser.department}</p>}</div></div></div>{['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}</div>);
+                    })}</div>
                 </div>
             );
         };
@@ -786,7 +789,7 @@
                                 {view === 'dashboard' && <Dashboard t={t} user={user} setView={setView} requests={globalRequests} users={allUsers} />}
                                 {view === 'attendance' && <Attendance t={t} user={user} onError={()=>setPermError(true)} />}
                                 {view === 'employees' && <Employees t={t} user={user} onError={()=>setPermError(true)} />}
-                                {view === 'requests' && <Requests t={t} user={user} onError={()=>setPermError(true)} />}
+                                {view === 'requests' && <Requests t={t} user={user} users={allUsers} onError={()=>setPermError(true)} />}
                                 {view === 'chat' && <Chat t={t} user={user} onError={()=>setPermError(true)} />}
                                 {view === 'meetings' && <Meetings t={t} user={user} onError={()=>setPermError(true)} />}
                                 {view === 'reports' && <Reports t={t} />}
