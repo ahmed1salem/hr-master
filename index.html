@@ -181,6 +181,49 @@
         };
         const useToast = () => React.useContext(ToastContext);
 
+        // Global Delete Handler
+        const useGlobalDelete = (user) => {
+            const showToast = useToast();
+            return async (collectionName, id, description = "Item") => {
+                if (!['HR', 'Manager'].includes(user.role)) {
+                    showToast("Access Denied", "error");
+                    return false;
+                }
+
+                if (!confirm("Are you sure you want to delete this?")) return false;
+
+                if (user.role === 'Manager') {
+                    try {
+                        await window.deleteDoc(window.doc(window.db, collectionName, id));
+                        showToast("Deleted Successfully", "success");
+                        return true;
+                    } catch (e) {
+                        showToast("Delete Failed", "error");
+                        console.error(e);
+                        return false;
+                    }
+                } else if (user.role === 'HR') {
+                    try {
+                        await window.addDoc(window.collection(window.db, "deletion_requests"), {
+                            targetCollection: collectionName,
+                            targetId: id,
+                            description,
+                            requestedBy: user.uid,
+                            requesterName: user.name,
+                            timestamp: window.serverTimestamp(),
+                            status: 'Pending'
+                        });
+                        showToast("Deletion Request Sent to Manager", "success");
+                        return true; // Return true as action handled
+                    } catch (e) {
+                        showToast("Request Failed", "error");
+                        console.error(e);
+                        return false;
+                    }
+                }
+            };
+        };
+
         const PermissionHelpModal = ({ onClose }) => (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative border border-slate-100">
@@ -335,6 +378,7 @@
             const [showForm, setShowForm] = useState(false);
             const [formData, setFormData] = useState({});
             const showToast = useToast();
+            const handleDelete = useGlobalDelete(user);
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
@@ -344,7 +388,11 @@
 
             const handleAction = async (action, id, data = null) => {
                 try {
-                    if (action === 'delete') { if(confirm(t.confirmDelete)) { await window.deleteDoc(window.doc(window.db, "users", id)); showToast("Deleted", "success"); } }
+                    if (action === 'delete') {
+                         // Use global handler
+                         const desc = data ? `${data.name} (${data.role})` : "Employee";
+                         await handleDelete("users", id, desc);
+                    }
                     else if (action === 'approve') { await window.updateDoc(window.doc(window.db, "users", id), { status: 'active' }); showToast("Approved", "success"); }
                     else if (action === 'create' || action === 'update') {
                         const payload = { ...data, status: 'active', createdAt: window.serverTimestamp() };
@@ -365,28 +413,41 @@
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.employees}</h2><button onClick={()=>{setFormData({}); setShowForm(true)}} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg hover:bg-primary-700 transition-colors"><Icon name="plus" size={18}/> {t.addEmployee}</button></div>
                     <div className="flex gap-2 border-b border-slate-200"><button onClick={()=>setTab('active')} className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors ${tab==='active'?'border-primary-600 text-primary-700':'border-transparent text-slate-500'}`}>{t.activeEmployees} ({active.length})</button><button onClick={()=>setTab('pending')} className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${tab==='pending'?'border-primary-600 text-primary-700':'border-transparent text-slate-500'}`}>{t.joinRequests} {pending.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 rounded-full">{pending.length}</span>}</button></div>
                     {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 mb-6 animate-fade-in"><h3 className="font-bold mb-4">{t.addEmployee}</h3><form onSubmit={(e)=>{e.preventDefault(); handleAction(formData.id?'update':'create', formData.id, formData)}} className="grid grid-cols-2 gap-4"><input className="p-3 border rounded-xl" placeholder={t.fullName} required onChange={e=>setFormData({...formData, name:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.email} required type="email" onChange={e=>setFormData({...formData, email:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.position} onChange={e=>setFormData({...formData, position:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.department} onChange={e=>setFormData({...formData, department:e.target.value})} /><input className="p-3 border rounded-xl" placeholder={t.salary} type="number" onChange={e=>setFormData({...formData, salary:e.target.value})} /><select className="p-3 border rounded-xl" onChange={e=>setFormData({...formData, role:e.target.value})}><option value="Employee">Employee</option><option value="Manager">Manager</option><option value="HR">HR</option></select><div className="flex gap-2"><input type="time" className="flex-1 p-3 border rounded-xl" value={formData.shiftStart||"09:00"} onChange={e=>setFormData({...formData, shiftStart:e.target.value})} /><input type="time" className="flex-1 p-3 border rounded-xl" value={formData.shiftEnd||"17:00"} onChange={e=>setFormData({...formData, shiftEnd:e.target.value})} /></div><div className="col-span-2 flex justify-end gap-2 mt-2"><button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button><button className="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold">{t.save}</button></div></form></div>)}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{list.map(u => (<div key={u.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all group relative"><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-lg">{u.name?.charAt(0)}</div><div><h3 className="font-bold text-slate-800">{u.name}</h3><p className="text-xs text-primary-600 font-bold uppercase">{u.position || u.role}</p></div></div><div className="space-y-2 text-sm text-slate-500 mb-6"><div className="flex items-center gap-2"><Icon name="mail" size={14}/> {u.email}</div><div className="flex items-center gap-2"><Icon name="briefcase" size={14}/> {u.department}</div></div><div className="flex gap-2">{tab === 'active' ? (<><button onClick={()=>setViewId(u.id)} className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100">{t.viewProfile}</button><button onClick={()=>handleAction('delete', u.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Icon name="trash-2" size={16}/></button></>) : (<><button onClick={()=>handleAction('approve', u.id)} className="flex-1 py-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100">{t.approveUser}</button><button onClick={()=>handleAction('delete', u.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Icon name="x" size={16}/></button></>)}</div></div>))}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{list.map(u => (<div key={u.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all group relative"><div className="flex items-center gap-4 mb-4"><div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-lg">{u.name?.charAt(0)}</div><div><h3 className="font-bold text-slate-800">{u.name}</h3><p className="text-xs text-primary-600 font-bold uppercase">{u.position || u.role}</p></div></div><div className="space-y-2 text-sm text-slate-500 mb-6"><div className="flex items-center gap-2"><Icon name="mail" size={14}/> {u.email}</div><div className="flex items-center gap-2"><Icon name="briefcase" size={14}/> {u.department}</div></div><div className="flex gap-2">{tab === 'active' ? (<><button onClick={()=>setViewId(u.id)} className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100">{t.viewProfile}</button><button onClick={()=>handleAction('delete', u.id, u)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Icon name="trash-2" size={16}/></button></>) : (<><button onClick={()=>handleAction('approve', u.id)} className="flex-1 py-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100">{t.approveUser}</button><button onClick={()=>handleAction('delete', u.id, u)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"><Icon name="x" size={16}/></button></>)}</div></div>))}</div>
                 </div>
             );
         };
 
         const Requests = ({ t, user, users = [], onError }) => {
             const [list, setList] = useState([]);
+            const [delRequests, setDelRequests] = useState([]);
             const [showForm, setShowForm] = useState(false);
+            const [activeTab, setActiveTab] = useState('requests');
             const [form, setForm] = useState({ type: 'Leave', reason: '' });
             const showToast = useToast();
+            const handleDelete = useGlobalDelete(user);
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
-                // FIX: Remove orderBy/where combinations causing index errors
+
+                // Regular Requests
                 const q = ['HR','Manager'].includes(user.role) ? window.collection(window.db, "requests") : window.query(window.collection(window.db, "requests"), window.where("userId", "==", user.uid));
                 const unsub = window.onSnapshot(q, s => {
                      const data = s.docs.map(d => ({id:d.id, ...d.data()}));
-                     // Sort client side
                      data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                      setList(data);
                 }, (e) => { if(e.code === 'permission-denied' && onError) onError(); });
-                return () => unsub();
+
+                // Deletion Requests (Manager Only)
+                let unsubDel = () => {};
+                if (user.role === 'Manager') {
+                    const qDel = window.query(window.collection(window.db, "deletion_requests"), window.where("status", "==", "Pending"));
+                    unsubDel = window.onSnapshot(qDel, s => {
+                        setDelRequests(s.docs.map(d => ({id:d.id, ...d.data()})));
+                    }, (e) => console.error(e));
+                }
+
+                return () => { unsub(); unsubDel(); }
             }, [user]);
 
             const submit = async (e) => {
@@ -398,14 +459,62 @@
 
             const statusUpdate = async (id, status) => { await window.updateDoc(window.doc(window.db, "requests", id), { status }); };
 
+            const handleDelRequest = async (req, approve) => {
+                try {
+                    if (approve) {
+                        await window.deleteDoc(window.doc(window.db, req.targetCollection, req.targetId));
+                        await window.deleteDoc(window.doc(window.db, "deletion_requests", req.id));
+                        showToast("Request Approved & Item Deleted", "success");
+                    } else {
+                        await window.deleteDoc(window.doc(window.db, "deletion_requests", req.id));
+                        showToast("Request Rejected", "info");
+                    }
+                } catch(e) {
+                    showToast("Action Failed", "error");
+                }
+            };
+
             return (
                 <div className="space-y-6 animate-fade-in pb-10">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.requests}</h2><button onClick={()=>setShowForm(true)} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm shadow-lg"><Icon name="plus" size={18}/> {t.newRequest}</button></div>
+
+                    {user.role === 'Manager' && (
+                        <div className="flex gap-2 border-b border-slate-200 mb-4">
+                            <button onClick={()=>setActiveTab('requests')} className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors ${activeTab==='requests'?'border-primary-600 text-primary-700':'border-transparent text-slate-500'}`}>Leave/Loan Requests</button>
+                            <button onClick={()=>setActiveTab('deletions')} className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab==='deletions'?'border-primary-600 text-primary-700':'border-transparent text-slate-500'}`}>Deletion Requests {delRequests.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 rounded-full">{delRequests.length}</span>}</button>
+                        </div>
+                    )}
+
                     {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl mb-6"><form onSubmit={submit} className="space-y-4"><select className="w-full p-3 border rounded-xl" onChange={e=>setForm({...form, type:e.target.value})}><option value="Leave">{t.leave}</option><option value="Permission">{t.permission}</option><option value="Loan">{t.loan}</option></select>{form.type === 'Permission' && <div className="flex gap-2"><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, from:e.target.value})} /><input type="time" required className="flex-1 p-3 border rounded-xl" onChange={e=>setForm({...form, to:e.target.value})} /></div>}<textarea className="w-full p-3 border rounded-xl" placeholder={t.reason} required onChange={e=>setForm({...form, reason:e.target.value})} /><div className="flex justify-end gap-2"><button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 text-slate-500 font-bold">{t.cancel}</button><button className="px-6 py-2 bg-primary-600 text-white rounded-xl font-bold">{t.submit}</button></div></form></div>)}
-                    <div className="grid gap-4">{list.map(r => {
-                        const reqUser = users.find(u => u.uid === r.userId);
-                        return (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><div className="mt-2 flex items-start gap-1 text-slate-400"><Icon name="user" size={12} className="mt-0.5"/><div><p className="text-xs font-bold text-slate-500">{r.userName}</p>{reqUser?.department && <p className="text-[10px] uppercase text-slate-300">{reqUser.department}</p>}</div></div></div>{['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}</div>);
-                    })}</div>
+
+                    {activeTab === 'deletions' && user.role === 'Manager' ? (
+                        <div className="grid gap-4">
+                            {delRequests.length === 0 && <p className="text-slate-400 text-center py-10">No pending deletion requests.</p>}
+                            {delRequests.map(req => (
+                                <div key={req.id} className="bg-red-50 p-5 rounded-2xl border border-red-100 flex justify-between items-center">
+                                    <div>
+                                        <h3 className="font-bold text-red-800 flex items-center gap-2"><Icon name="trash-2" size={16}/> Delete Request</h3>
+                                        <p className="text-sm text-red-600 mt-1"><b>{req.requesterName}</b> wants to delete {req.description}</p>
+                                        <p className="text-xs text-red-400 mt-1 uppercase font-mono">{req.targetCollection} / {req.targetId}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={()=>handleDelRequest(req, true)} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-red-700">Delete</button>
+                                        <button onClick={()=>handleDelRequest(req, false)} className="bg-white text-slate-600 px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50">Cancel</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">{list.map(r => {
+                            const reqUser = users.find(u => u.uid === r.userId);
+                            return (<div key={r.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div><div className="flex items-center gap-3 mb-1"><span className="font-bold text-slate-700">{r.type}</span><span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.status==='Approved'?'bg-green-100 text-green-700':r.status==='Rejected'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}`}>{r.status}</span></div><p className="text-sm text-slate-600">{r.reason} {r.from && <span className="font-mono bg-slate-100 px-1 rounded ml-1">{r.from}-{r.to}</span>}</p><div className="mt-2 flex items-start gap-1 text-slate-400"><Icon name="user" size={12} className="mt-0.5"/><div><p className="text-xs font-bold text-slate-500">{r.userName}</p>{reqUser?.department && <p className="text-[10px] uppercase text-slate-300">{reqUser.department}</p>}</div></div></div>
+                            <div className="flex items-center gap-2">
+                                {['HR','Manager'].includes(user.role) && r.status === 'Pending' && (<div className="flex gap-2 mr-2"><button onClick={()=>statusUpdate(r.id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100"><Icon name="check" size={18}/></button><button onClick={()=>statusUpdate(r.id, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icon name="x" size={18}/></button></div>)}
+                                {['HR','Manager'].includes(user.role) && <button onClick={()=>handleDelete("requests", r.id, `Request: ${r.type} by ${r.userName}`)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Icon name="trash-2" size={16}/></button>}
+                            </div>
+                            </div>);
+                        })}</div>
+                    )}
                 </div>
             );
         };
@@ -415,6 +524,7 @@
             const [status, setStatus] = useState(null);
             const [loading, setLoading] = useState(false);
             const showToast = useToast();
+            const handleDelete = useGlobalDelete(user);
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
@@ -441,7 +551,7 @@
             return (
                 <div className="space-y-6 pb-10 animate-fade-in">
                     <div className="bg-white rounded-3xl p-10 shadow-sm border border-slate-200 text-center"><div className="text-6xl font-bold text-slate-800 font-mono tracking-tighter mb-8">{new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div className="flex justify-center">{!status ? <button onClick={()=>punch('in')} disabled={loading} className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-emerald-200 hover:shadow-2xl hover:bg-emerald-700 transition-all flex items-center gap-3 disabled:opacity-50"><Icon name="log-in" /> {loading ? "..." : t.checkIn}</button> : <button onClick={()=>punch('out')} disabled={loading} className="px-10 py-4 bg-red-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-200 hover:shadow-2xl hover:bg-red-700 transition-all flex items-center gap-3 disabled:opacity-50"><Icon name="log-out" /> {loading ? "..." : t.checkOut}</button>}</div></div>
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-4">{t.date}</th><th className="p-4">{t.type}</th><th className="p-4">Time</th><th className="p-4">Loc</th></tr></thead><tbody className="divide-y divide-slate-100">{logs.map(l => (<tr key={l.id}><td className="p-4 font-medium">{new Date(l.timestamp?.seconds*1000).toLocaleDateString()}</td><td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{l.type.toUpperCase()}</span></td><td className="p-4 font-mono">{new Date(l.timestamp?.seconds*1000).toLocaleTimeString()}</td><td className="p-4 text-xs text-slate-400">{l.location}</td></tr>))}</tbody></table></div>
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-4">{t.date}</th><th className="p-4">{t.type}</th><th className="p-4">Time</th><th className="p-4">Loc</th>{['HR','Manager'].includes(user.role) && <th className="p-4">{t.actions}</th>}</tr></thead><tbody className="divide-y divide-slate-100">{logs.map(l => (<tr key={l.id}><td className="p-4 font-medium">{new Date(l.timestamp?.seconds*1000).toLocaleDateString()}</td><td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${l.type==='in'?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{l.type.toUpperCase()}</span></td><td className="p-4 font-mono">{new Date(l.timestamp?.seconds*1000).toLocaleTimeString()}</td><td className="p-4 text-xs text-slate-400">{l.location}</td>{['HR','Manager'].includes(user.role) && <td className="p-4"><button onClick={()=>handleDelete("attendance", l.id, `Attendance: ${l.userName} (${l.type})`)} className="text-slate-400 hover:text-red-500"><Icon name="trash-2" size={16}/></button></td>}</tr>))}</tbody></table></div>
                 </div>
             );
         };
@@ -501,6 +611,7 @@
             const [showForm, setShowForm] = useState(false);
             const [newMeeting, setNewMeeting] = useState({ title: '', type: 'online', date: '', time: '' });
             const showToast = useToast();
+            const handleDelete = useGlobalDelete(user);
 
             useEffect(() => {
                 if(!window.firebaseLoaded) return;
@@ -519,7 +630,7 @@
                 <div className="space-y-6 animate-slide-up">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">{t.meetings}</h2><button onClick={()=>setShowForm(true)} className="bg-primary-600 text-white px-4 py-2 rounded-xl flex gap-2 font-bold text-sm"><Icon name="plus" size={18}/> {t.scheduleMeeting}</button></div>
                     {showForm && (<div className="bg-white p-6 rounded-2xl shadow-xl mb-6"><form onSubmit={create} className="space-y-4"><input className="w-full p-3 border rounded-xl" placeholder={t.meetingTitle} onChange={e=>setNewMeeting({...newMeeting, title:e.target.value})} /><div className="flex gap-2"><select className="flex-1 p-3 border rounded-xl" onChange={e=>setNewMeeting({...newMeeting, type:e.target.value})}><option value="online">Online</option><option value="onsite">Onsite</option></select><input type="date" className="flex-1 p-3 border rounded-xl" onChange={e=>setNewMeeting({...newMeeting, date:e.target.value})} /><input type="time" className="flex-1 p-3 border rounded-xl" onChange={e=>setNewMeeting({...newMeeting, time:e.target.value})} /></div><button className="w-full p-3 bg-primary-600 text-white rounded-xl font-bold">{t.create}</button></form></div>)}
-                    <div className="grid gap-4">{meetings.map(m => (<div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center"><Icon name="video" size={24}/></div><div><h3 className="font-bold text-lg">{m.title}</h3><p className="text-sm text-slate-500">{m.date} at {m.time}</p></div></div>{m.link && <a href={m.link} target="_blank" className="bg-primary-50 text-primary-600 px-4 py-2 rounded-lg font-bold text-sm">Join</a>}</div>))}</div>
+                    <div className="grid gap-4">{meetings.map(m => (<div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center"><Icon name="video" size={24}/></div><div><h3 className="font-bold text-lg">{m.title}</h3><p className="text-sm text-slate-500">{m.date} at {m.time}</p></div></div><div className="flex items-center gap-3">{m.link && <a href={m.link} target="_blank" className="bg-primary-50 text-primary-600 px-4 py-2 rounded-lg font-bold text-sm">Join</a>}{['HR','Manager'].includes(user.role) && <button onClick={()=>handleDelete("meetings", m.id, `Meeting: ${m.title}`)} className="p-2 text-slate-300 hover:text-red-500"><Icon name="trash-2" size={16}/></button>}</div></div>))}</div>
                 </div>
             );
         };
